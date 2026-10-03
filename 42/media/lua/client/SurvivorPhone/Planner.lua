@@ -257,22 +257,57 @@ function P.visible(data,history)
     return rows
 end
 function P.radar(data,minute)
-    local active,recent,future;local ordered=P.sorted(data)
+    local active,due,future,anytime
+    local ordered=P.sorted(data)
     for _,task in ipairs(ordered) do
         local s=P.state(data,task)
-        if s.status=='active' then active=task end
-        if s.status~='skipped' and task.start then
-            if task.start<=minute then recent=task elseif s.status~='done' and not future then future=task end
+        local status=P.status(data,task,minute)
+        if status=='In progress' and not active then
+            active=task
+        elseif status~='Done' and status~='Skipped today' and status~='Window passed' then
+            if task.start then
+                local target=s.snoozeUntil or task.start
+                if target<=minute and not due then due=task
+                elseif target>minute and not future then future=task end
+            elseif not anytime then
+                anytime=task
+            end
         end
     end
-    local current=active or recent or P.latestDone(data) or future or P.nextTask(data,minute)
-    local passed=false
-    for _,task in ipairs(ordered) do
-        local s=P.state(data,task)
-        if passed and s.status~='done' and s.status~='skipped' then return current,task end
-        if current and task.id==current.id then passed=true end
+    local current=active or due or future or anytime or P.latestDone(data)
+    if not current then return nil,nil end
+    local nextTask
+    if active or due then
+        local bestTime
+        for _,task in ipairs(ordered) do
+            if task.id~=current.id then
+                local s=P.state(data,task)
+                local status=P.status(data,task,minute)
+                if status~='Done' and status~='Skipped today' and status~='Window passed' then
+                    local target=s.snoozeUntil or task.start
+                    if target and target>minute and (not bestTime or target<bestTime) then nextTask,bestTime=task,target end
+                end
+            end
+        end
+        if not nextTask then
+            for _,task in ipairs(ordered) do
+                if task.id~=current.id then
+                    local status=P.status(data,task,minute)
+                    if status~='Done' and status~='Skipped today' and status~='Window passed' then nextTask=task;break end
+                end
+            end
+        end
+    elseif future then
+        local seen=false
+        for _,task in ipairs(ordered) do
+            local status=P.status(data,task,minute)
+            if status~='Done' and status~='Skipped today' and status~='Window passed' then
+                if seen then nextTask=task;break end
+                if task.id==current.id then seen=true end
+            end
+        end
     end
-    return current,nil
+    return current,nextTask
 end
 function P.recognize(data,rule,minute,evidence)
     local best,active,count,activeCount=nil,nil,0,0
