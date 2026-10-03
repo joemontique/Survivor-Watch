@@ -1,0 +1,11 @@
+module SurvivorPhone
+{
+    item CellPhone
+    {
+        DisplayCategory = Electronics,
+        ItemType = base:normal,
+        Weight = 0.2,
+        Icon = CordlessPhone,
+        WorldStaticModel = CordlessPhone,
+    }
+}

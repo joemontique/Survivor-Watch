@@ -1,0 +1,9 @@
+*.zip
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
+outputs/
+Backups/
+.idea/
+.vscode/
