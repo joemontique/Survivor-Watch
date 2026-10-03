@@ -257,55 +257,32 @@ function P.visible(data,history)
     return rows
 end
 function P.radar(data,minute)
-    local active,due,future,anytime
-    local ordered=P.sorted(data)
-    for _,task in ipairs(ordered) do
-        local s=P.state(data,task)
+    local active,due,secondDue,future,anytime
+    for _,task in ipairs(P.sorted(data)) do
+        local state=P.state(data,task)
         local status=P.status(data,task,minute)
         if status=='In progress' and not active then
             active=task
         elseif status~='Done' and status~='Skipped today' and status~='Window passed' then
-            if task.start then
-                local target=s.snoozeUntil or task.start
-                if target<=minute and not due then due=task
-                elseif target>minute and not future then future=task end
+            local target=state.snoozeUntil or task.start
+            if target then
+                if target<=minute then
+                    if not due then due=task elseif not secondDue then secondDue=task end
+                elseif not future then
+                    future=task
+                end
             elseif not anytime then
                 anytime=task
             end
         end
     end
-    local current=active or due or future or anytime or P.latestDone(data)
-    if not current then return nil,nil end
+    local current=active or due
     local nextTask
-    if active or due then
-        local bestTime
-        for _,task in ipairs(ordered) do
-            if task.id~=current.id then
-                local s=P.state(data,task)
-                local status=P.status(data,task,minute)
-                if status~='Done' and status~='Skipped today' and status~='Window passed' then
-                    local target=s.snoozeUntil or task.start
-                    if target and target>minute and (not bestTime or target<bestTime) then nextTask,bestTime=task,target end
-                end
-            end
-        end
-        if not nextTask then
-            for _,task in ipairs(ordered) do
-                if task.id~=current.id then
-                    local status=P.status(data,task,minute)
-                    if status~='Done' and status~='Skipped today' and status~='Window passed' then nextTask=task;break end
-                end
-            end
-        end
-    elseif future then
-        local seen=false
-        for _,task in ipairs(ordered) do
-            local status=P.status(data,task,minute)
-            if status~='Done' and status~='Skipped today' and status~='Window passed' then
-                if seen then nextTask=task;break end
-                if task.id==current.id then seen=true end
-            end
-        end
+    if current then
+        if active and due and due.id~=current.id then nextTask=due
+        else nextTask=secondDue or future or anytime end
+    else
+        nextTask=future or anytime
     end
     return current,nextTask
 end
