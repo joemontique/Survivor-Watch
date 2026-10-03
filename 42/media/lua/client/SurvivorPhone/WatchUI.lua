@@ -14,6 +14,7 @@ local c=D.c
 
 local needNames={thirst='Hydration',hunger='Fuel',fatigue='Recovery',endurance='Stamina'}
 local needColors={thirst=c.blue,hunger=c.mint,fatigue=c.purple,endurance=c.amber}
+local needPriority={fatigue=3,thirst=2,hunger=1}
 
 function W:new(player,item)
     local root=SurvivorPhoneData.get(player)
@@ -89,14 +90,22 @@ local function toggleMute(root)
 end
 
 local function urgentNeed(root)
-    local best
+    local active,activeScore,soon
     for _,bar in ipairs(((root.needs or {}).bars or {})) do
         if bar.key~='endurance' then
-            if bar.level and bar.level>0 then return bar,(needNames[bar.key] or bar.label)..' / '..bar.status end
-            if bar.eta and (not best or bar.eta<best.eta) then best=bar end
+            local level=tonumber(bar.level) or 0
+            if level>0 then
+                local score=level*100+(needPriority[bar.key] or 0)
+                if not active or score>activeScore or score==activeScore and (bar.eta or math.huge)<(active.eta or math.huge) then
+                    active,activeScore=bar,score
+                end
+            elseif bar.eta and (not soon or bar.eta<soon.eta) then
+                soon=bar
+            end
         end
     end
-    if best then return best,(needNames[best.key] or best.label)..' in '..C.irlEta(best.eta) end
+    if active then return active,(needNames[active.key] or active.label)..' / '..active.status end
+    if soon then return soon,(needNames[soon.key] or soon.label)..' in '..C.irlEta(soon.eta) end
 end
 
 function W:bodyBattery()
