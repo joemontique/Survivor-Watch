@@ -3,6 +3,8 @@ require 'SurvivorPhone/WatchUI'
 require 'SurvivorPhone/PlannerApp'
 require 'SurvivorPhone/GuidanceApp'
 require 'SurvivorPhone/TravelApp'
+require 'SurvivorPhone/WatchPanelUI'
+require 'SurvivorPhone/ClockHotspot'
 require 'SurvivorPhone/Notifications'
 require 'SurvivorPhone/NativeHooks'
 require 'SurvivorPhone/SleepCoach'
@@ -27,12 +29,13 @@ function S.open(item,player)
     local index=player:getPlayerNum();local current=S.windows[index]
     if current then current:bringToTop();return end
     if S.watchWindows[index] then S.closeWatch(index,false) end
-    local window=SurvivorPhoneUI:new(player,item)
+    local window=SurvivorWatchPanelUI:new(player,item)
     window:initialise();window:addToUIManager();window:setVisible(true);S.windows[index]=window
 end
 function S.openWatch(item,player)
     if not player or isClient() or isServer() or player:isDead() or not ownedBy(item,player) or not S.isDigitalWatch(item) then return end
     local index=player:getPlayerNum();local current=S.watchWindows[index]
+    if S.windows[index] then S.windows[index]:bringToTop();return end
     if current then current:bringToTop();return end
     local root=SurvivorPhoneData.get(player)
     root.settings.watchEnabled=true
@@ -60,8 +63,7 @@ function S.contextMenu(index,context,items)
         local item=entry
         if not instanceof(entry,'InventoryItem') then item=entry.items and entry.items[1] end
         if S.isDigitalWatch(item) and ownedBy(item,player) then
-            context:addOption('Open Survivor Watch',item,S.open,player)
-            context:addOption('Show Survivor Watch Face',item,S.openWatch,player)
+            context:addOption('Open Survivor Watch',item,S.openWatch,player)
             return
         end
     end
@@ -100,6 +102,7 @@ function S.onCreatePlayer(index,player)
     SurvivorPhoneActivity.current[player]=nil;SurvivorPhoneTravel.runtime[player]=nil
     SurvivorPhoneRecognition.scan(player)
     SurvivorPhoneHooks.install()
+    if SurvivorWatchClockHotspot then SurvivorWatchClockHotspot.install(player) end
     local watch=S.findTracker(player:getInventory())
     if watch then S.ensureWatch(player,watch) end
 end
