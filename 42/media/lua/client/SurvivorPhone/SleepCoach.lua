@@ -106,6 +106,17 @@ local function forceWakeTime(player)
         if ok then return tonumber(value) end
     end
 end
+local function playerForRoot(root)
+    if not root or not getNumActivePlayers or not getSpecificPlayer then return nil end
+    local count=getNumActivePlayers()
+    for i=0,count-1 do
+        local player=getSpecificPlayer(i)
+        if player and player.getModData then
+            local ok,mod=pcall(function() return player:getModData() end)
+            if ok and mod and mod.SurvivorPhone==root then return player end
+        end
+    end
+end
 
 function S.ensure(root)
     root.sleepCoach=root.sleepCoach or {version=1,history={},alarm={}}
@@ -170,10 +181,14 @@ end
 function S.syncAlarmItem(player,targetMinute,alarm)
     local hour=math.floor(targetMinute/60)%24
     local minute=targetMinute%60
-    local preferred=findAlarmItem(player,alarm)
-    local item=preferred
-    if not item then for candidate in inventoryItems(player) do if canUseAlarm(candidate) then item=candidate;break end end end
-    if not item then return false,{error='No carried digital watch or alarm clock found.'} end
+    local item=findAlarmItem(player,alarm)
+    if alarm and alarm.itemId and not item then
+        return false,{previousAlarm=alarm.previousAlarm,error='The alarm item used by Sleep Reset is no longer carried.'}
+    end
+    if not item then
+        for candidate in inventoryItems(player) do if canUseAlarm(candidate) then item=candidate;break end end
+    end
+    if not item then return false,{previousAlarm=alarm and alarm.previousAlarm or nil,error='No carried digital watch or alarm clock found.'} end
     local previous=alarm and alarm.previousAlarm or alarmState(item)
     local ok,err=pcall(function()
         item:setHour(hour)
@@ -192,9 +207,9 @@ function S.applyWake(player,plan,alarm)
     end
     local ok,item=S.syncAlarmItem(player,plan.targetMinute,alarm)
     result.itemSynced=ok
-    result.item=item and item.item or nil
-    result.itemId=item and item.itemId or nil
-    result.itemType=item and item.itemType or nil
+    result.item=item and item.item or alarm and alarm.item or nil
+    result.itemId=item and item.itemId or alarm and alarm.itemId or nil
+    result.itemType=item and item.itemType or alarm and alarm.itemType or nil
     result.previousAlarm=item and item.previousAlarm or alarm and alarm.previousAlarm or nil
     result.itemError=item and item.error or nil
     result.lastSyncReal=C.realSeconds()
@@ -240,6 +255,7 @@ end
 function S.cancel(root,player,reason)
     local sc=S.ensure(root)
     local old=sc.alarm or {}
+    player=player or playerForRoot(root)
     local restored=S.restoreNative(player,old)
     local now=SurvivorPhoneClock.now()
     sc.alarm={armed=false,active=false,cancelledDay=now and now.day or nil,cancelledMinute=now and now.minute or nil,
