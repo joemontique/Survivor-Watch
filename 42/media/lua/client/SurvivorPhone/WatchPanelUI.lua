@@ -5,10 +5,8 @@ local U=SurvivorWatchPanelUI
 local B=SurvivorPhoneUI
 local D=SurvivorPhoneWidgets
 local P=SurvivorPhonePlanner
-local C=SurvivorPhoneClock
 local X=SurvivorPhoneXP
 local F=SurvivorPhoneFishing
-local A=SurvivorPhoneActivity
 local c=D.c
 
 local needNames={thirst='Hydration',hunger='Fuel',fatigue='Recovery',endurance='Stamina'}
@@ -157,11 +155,12 @@ function U:drawSkills(y,now)
     local today=fishing.today or {casts=0,successful=0}
     local avg,count=F.recentAverage(fishing,false)
     local fishText='Today: '..(today.successful or 0)..' catches / '..(today.casts or 0)..' casts'
-    if avg and count>0 then fishText=fishText..'  •  recent avg '..math.floor(avg+0.5)..'s' end
+    if avg and count>0 then fishText=fishText..'  /  recent avg '..math.floor(avg+0.5)..'s' end
     y=y+D.wrap(self,fishText,x,y,w,c.text)+12
 
     y=self:section('RECENT ACTIVITY',y)
-    local recent=(self.root.learning and self.root.learning.recent) or {}
+    local learning=SurvivorPhoneLearning.ensure(self.root)
+    local recent=learning.recent or {}
     if #recent==0 then
         y=y+D.wrap(self,'No confirmed activity yet.',x,y,w,c.muted)+10
     else
@@ -268,10 +267,11 @@ function U:prerender()
     local tw=(self.width-self.pad*2-gap*(#tabs-1))/#tabs
     local ty=self.header
     for _,tab in ipairs(tabs) do
-        local active=tabActive(self.app,tab[1])
+        local app,label=tab[1],tab[2]
+        local active=tabActive(self.app,app)
         D.round(self,tx,ty,tw,self.navHeight-4,active and c.soft or c.raised,active and 0.92 or 0.64,9)
-        D.text(self,tab[2],tx+math.max(6,(tw-D.measure(tab[2]))/2),ty+8,active and c.mint or c.muted,nil,tw-12)
-        self:region('tab-'..tab[1],tx,ty,tw,self.navHeight-4,function() self:showApp(tab[1]) end)
+        D.text(self,label,tx+math.max(6,(tw-D.measure(label))/2),ty+8,active and c.mint or c.muted,nil,tw-12)
+        self:region('tab-'..app,tx,ty,tw,self.navHeight-4,function() self:showApp(app) end)
         tx=tx+tw+gap
     end
 
