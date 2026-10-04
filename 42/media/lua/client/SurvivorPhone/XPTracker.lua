@@ -104,19 +104,23 @@ end
 
 function X.skillState(player,skill)
     if not player or not skill or not skill.perk then return nil end
+    local definition=skill.definition
     local level=player:getPerkLevel(skill.perk)
     local total=player:getXp():getXP(skill.perk)
+    if not definition or not definition.getXpForLevel then
+        return {level=level,total=total,current=nil,cost=nil,remaining=nil,endTotal=nil,ratio=0,maxed=level>=10}
+    end
     local startTotal=0
     for i=1,level do
-        local ok,value=pcall(function() return skill.perk:getXpForLevel(i) end)
-        if ok and value then startTotal=startTotal+value end
+        local ok,value=pcall(function() return definition:getXpForLevel(i) end)
+        if ok and value then startTotal=startTotal+(tonumber(value) or 0) end
     end
     if level>=10 then
         return {level=level,total=total,startTotal=startTotal,endTotal=total,current=0,cost=0,remaining=0,ratio=1,maxed=true}
     end
-    local ok,cost=pcall(function() return skill.perk:getXpForLevel(level+1) end)
+    local ok,cost=pcall(function() return definition:getXpForLevel(level+1) end)
     cost=ok and tonumber(cost) or nil
-    if not cost or cost<=0 then return {level=level,total=total,startTotal=startTotal,endTotal=nil,current=nil,cost=nil,remaining=nil,ratio=0} end
+    if not cost or cost<=0 then return {level=level,total=total,startTotal=startTotal,endTotal=nil,current=nil,cost=nil,remaining=nil,ratio=0,maxed=false} end
     local current=math.max(0,total-startTotal)
     local endTotal=startTotal+cost
     local remaining=math.max(0,endTotal-total)
@@ -162,7 +166,7 @@ function X.weightState(root,day,worldMinute,player)
     local okLot,incLot=pcall(function() return nutrition:isIncWeightLot() end)
     local okInc,inc=pcall(function() return nutrition:isIncWeight() end)
     local okDec,dec=pcall(function() return nutrition:isDecWeight() end)
-    if okLot and incLot or okInc and inc then trend='gaining'
+    if (okLot and incLot) or (okInc and inc) then trend='gaining'
     elseif okDec and dec then trend='losing' end
     local base
     for i=#t.weight.samples,1,-1 do
