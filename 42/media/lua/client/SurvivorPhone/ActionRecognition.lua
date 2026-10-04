@@ -63,7 +63,8 @@ function A.scan(player)
             SurvivorPhoneXP.add(root,now.day,skill.id,amount,skill.name,{
                 minute=now.minute,world=now.worldMinute,level=previousLevel,currentLevel=level,
                 actionKey=sameLevel and action and action.key or nil,
-                actionLabel=sameLevel and action and action.label or nil
+                actionLabel=sameLevel and action and action.label or nil,
+                actionInstance=sameLevel and action and action.instance or nil
             })
             if skill.id~='Fishing' and skill.id~='Fitness' and skill.id~='Strength' then
                 local rule=rules[skill.id] or 'Skill:'..skill.id
