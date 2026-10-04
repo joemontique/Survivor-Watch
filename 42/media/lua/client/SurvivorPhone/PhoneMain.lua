@@ -124,7 +124,9 @@ function S.poll(player)
     SurvivorPhoneHooks.safe('Sleep reset coach',SurvivorPhoneSleepCoach.poll,player)
     local root,planner,now=SurvivorPhoneData.get(player)
     local hotspot=SurvivorWatchClockHotspot and SurvivorWatchClockHotspot.instance
-    local watch=hotspot and hotspot.player==player and hotspot:getWatch(S,false) or S.findTracker(player:getInventory())
+    local watch
+    if hotspot and hotspot.player==player then watch=hotspot:getWatch(S,false)
+    else watch=S.findTracker(player:getInventory()) end
     if watch then SurvivorPhoneHooks.safe('Watch overlay',S.ensureWatch,player,watch) end
     if S.lastMinute[player]~=math.floor(now.worldMinute) then
         S.lastMinute[player]=math.floor(now.worldMinute)
