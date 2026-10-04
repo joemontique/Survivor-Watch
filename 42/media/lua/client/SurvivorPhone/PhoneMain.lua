@@ -5,6 +5,7 @@ require 'SurvivorPhone/GuidanceApp'
 require 'SurvivorPhone/TravelApp'
 require 'SurvivorPhone/WatchPanelUI'
 require 'SurvivorPhone/ProgressApp'
+require 'SurvivorPhone/MechanicsXP'
 require 'SurvivorPhone/ClockHotspot'
 require 'SurvivorPhone/Notifications'
 require 'SurvivorPhone/NativeHooks'
@@ -103,6 +104,7 @@ function S.onCreatePlayer(index,player)
     SurvivorPhoneActivity.current[player]=nil;SurvivorPhoneTravel.runtime[player]=nil
     SurvivorPhoneRecognition.scan(player)
     SurvivorPhoneHooks.install()
+    SurvivorPhoneMechanicsXP.install()
     if SurvivorWatchClockHotspot then SurvivorWatchClockHotspot.install(player) end
     local watch=S.findTracker(player:getInventory())
     if watch then S.ensureWatch(player,watch) end
@@ -142,6 +144,7 @@ Events.OnFillInventoryObjectContextMenu.Add(S.contextMenu)
 Events.OnCreatePlayer.Add(S.onCreatePlayer)
 Events.OnPlayerUpdate.Add(S.poll)
 Events.OnGameStart.Add(SurvivorPhoneHooks.install)
+Events.OnGameStart.Add(SurvivorPhoneMechanicsXP.install)
 Events.AddXP.Add(onXP)
 print('[SurvivorPhone] Survivor Watch 1.6.5 loaded (Build 42.20).')
 return S
