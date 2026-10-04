@@ -4,6 +4,7 @@ require 'SurvivorPhone/PlannerApp'
 require 'SurvivorPhone/GuidanceApp'
 require 'SurvivorPhone/TravelApp'
 require 'SurvivorPhone/WatchPanelUI'
+require 'SurvivorPhone/ProgressApp'
 require 'SurvivorPhone/ClockHotspot'
 require 'SurvivorPhone/Notifications'
 require 'SurvivorPhone/NativeHooks'
@@ -98,7 +99,7 @@ function S.onCreatePlayer(index,player)
     local root=SurvivorPhoneData.get(player)
     S.removeLegacyPhone(player)
     root.receivedPhone=nil
-    SurvivorPhoneRecognition.snapshots[player]=nil;SurvivorPhoneRecognition.sleeping[player]=nil
+    SurvivorPhoneRecognition.snapshots[player]=nil;SurvivorPhoneRecognition.levels[player]=nil;SurvivorPhoneRecognition.sleeping[player]=nil
     SurvivorPhoneActivity.current[player]=nil;SurvivorPhoneTravel.runtime[player]=nil
     SurvivorPhoneRecognition.scan(player)
     SurvivorPhoneHooks.install()
