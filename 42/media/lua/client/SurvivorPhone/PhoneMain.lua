@@ -96,6 +96,7 @@ function S.onCreatePlayer(index,player)
     if S.windows[index] then S.windows[index]:close() end
     if S.watchWindows[index] then S.watchWindows[index]:close(false) end
     SurvivorPhoneNotifications.dismiss(index)
+    S.nextPoll={};S.lastMinute={}
     if not player or isClient() or isServer() then return end
     local root=SurvivorPhoneData.get(player)
     S.removeLegacyPhone(player)
@@ -122,8 +123,8 @@ function S.poll(player)
     SurvivorPhoneHooks.safe('Needs tracking',SurvivorPhoneNeeds.update,player)
     SurvivorPhoneHooks.safe('Sleep reset coach',SurvivorPhoneSleepCoach.poll,player)
     local root,planner,now=SurvivorPhoneData.get(player)
-    S.removeLegacyPhone(player)
-    local watch=S.findTracker(player:getInventory())
+    local hotspot=SurvivorWatchClockHotspot and SurvivorWatchClockHotspot.instance
+    local watch=hotspot and hotspot.player==player and hotspot:getWatch(S,false) or S.findTracker(player:getInventory())
     if watch then SurvivorPhoneHooks.safe('Watch overlay',S.ensureWatch,player,watch) end
     if S.lastMinute[player]~=math.floor(now.worldMinute) then
         S.lastMinute[player]=math.floor(now.worldMinute)
