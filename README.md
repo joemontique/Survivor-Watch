@@ -34,3 +34,10 @@ All persistent values remain under the character's `getModData().SurvivorPhone` 
 ## Verification
 
 The validation harness compiles and executes the production Lua in Lua 5.1 with simulated Build 42 objects and native game Lua fixtures. It does not launch the game and does not touch the main save.
+
+## Deploy updates on Windows
+
+Run `powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\sync-local-mod.ps1` from the repository
+root to back up and deploy the complete `42` payload from the checked-out branch.
+See [the sync workflow](tools/README.md) for initial destination setup, verification,
+backup receipts and restart requirements. The script does not merge branches.

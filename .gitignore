@@ -7,3 +7,4 @@ outputs/
 Backups/
 .idea/
 .vscode/
+tools/.sync-local-mod.json
