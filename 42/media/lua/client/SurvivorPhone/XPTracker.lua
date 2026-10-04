@@ -17,14 +17,21 @@ function X.ensure(root,day)
     t.recentGains=t.recentGains or {}
     t.weight=t.weight or {samples={}}
     t.weight.samples=t.weight.samples or {}
+    t.revision=tonumber(t.revision) or 0
     if t.day~=day then
         if t.day then t.history[t.day]=t.totals end
-        t.day=day;t.totals={}
+        t.day=day;t.totals={};t.revision=t.revision+1
         local days={};for d in pairs(t.history) do table.insert(days,d) end;table.sort(days)
         while #days>30 do t.history[table.remove(days,1)]=nil end
     end
     t.totals=t.totals or {}
     return t
+end
+
+function X.bumpRevision(root,day)
+    local t=X.ensure(root,day)
+    t.revision=(tonumber(t.revision) or 0)+1
+    return t.revision
 end
 
 local function actionBucket(t,skill,level,key,label)
@@ -100,6 +107,7 @@ function X.add(root,day,skill,amount,name,meta)
         t.lastActionBySkill[skill]={skill=skill,level=meta.level,actionKey=meta.actionKey,actionLabel=meta.actionLabel,
             actionInstance=meta.actionInstance,day=day,minute=meta.minute,world=meta.world}
     end
+    t.revision=t.revision+1
 end
 
 function X.total(t)
