@@ -1,4 +1,5 @@
 require 'SurvivorPhone/PhoneUI'
+require 'SurvivorPhone/ProgressApp'
 
 SurvivorWatchPanelUI=SurvivorPhoneUI:derive('SurvivorWatchPanelUI')
 local U=SurvivorWatchPanelUI
@@ -6,7 +7,6 @@ local B=SurvivorPhoneUI
 local D=SurvivorPhoneWidgets
 local P=SurvivorPhonePlanner
 local X=SurvivorPhoneXP
-local F=SurvivorPhoneFishing
 local c=D.c
 
 local needNames={thirst='Hydration',hunger='Fuel',fatigue='Recovery',endurance='Stamina'}
@@ -126,56 +126,7 @@ function U:drawHome(y,now)
 end
 
 function U:drawSkills(y,now)
-    local x,w=self.pad,self.bodyW
-    local tracker=X.ensure(self.root,now.day)
-    local rows=X.rows(tracker.totals,tracker.names)
-    local total=X.total(tracker.totals)
-    y=self:heading('Progress','Today first: XP gains, recent confirmed activity and useful skill-specific stats.',y)
-
-    self:card(x,y,w,82,c.glass,0.86)
-    D.text(self,'TOTAL XP TODAY',x+16,y+14,c.muted,nil,w-32)
-    D.text(self,'+'..string.format('%.1f',total),x+16,y+36,c.purple,UIFont.Large,w-32)
-    y=y+96
-
-    y=self:section('TODAY\'S GAINS',y)
-    if #rows==0 then
-        y=y+D.wrap(self,'No XP recorded yet today. Skills appear here as soon as they gain XP.',x,y,w,c.muted)+12
-    else
-        for _,row in ipairs(rows) do
-            local value='+'..string.format('%.1f',row.xp)
-            D.text(self,row.name,x,y,c.text,nil,w-90)
-            D.text(self,value,x+w-D.measure(value),y,c.purple)
-            y=y+self.lh+8
-        end
-        y=y+6
-    end
-
-    local fishing=F.ensure(self.root,now.day)
-    y=self:section('FISHING',y)
-    local today=fishing.today or {casts=0,successful=0}
-    local avg,count=F.recentAverage(fishing,false)
-    local fishText='Today: '..(today.successful or 0)..' catches / '..(today.casts or 0)..' casts'
-    if avg and count>0 then fishText=fishText..'  /  recent avg '..math.floor(avg+0.5)..'s' end
-    y=y+D.wrap(self,fishText,x,y,w,c.text)+12
-
-    y=self:section('RECENT ACTIVITY',y)
-    local learning=SurvivorPhoneLearning.ensure(self.root)
-    local recent=learning.recent or {}
-    if #recent==0 then
-        y=y+D.wrap(self,'No confirmed activity yet.',x,y,w,c.muted)+10
-    else
-        local shown=0
-        for i=#recent,1,-1 do
-            local r=recent[i]
-            if r then
-                local label=(r.day or now.day)..'  '..(r.name or r.group or 'Activity')
-                y=y+D.wrap(self,label,x,y,w,c.muted)+6
-                shown=shown+1
-                if shown>=6 then break end
-            end
-        end
-    end
-    return y+8
+    return SurvivorWatchProgress.draw(self,y,now)
 end
 
 function U:drawSettings(y,now)
@@ -252,7 +203,7 @@ function U:prerender()
     D.round(self,0,0,self.width,self.height,c.bg,1,18)
     D.round(self,7,7,self.width-14,self.height-14,c.card,0.97,14)
 
-    local _,_,now=SurvivorPhoneData.get(self.player)
+    local now=SurvivorPhoneData.now()
     local x=self.pad
     D.text(self,'SURVIVOR WATCH',x,16,c.muted,UIFont.Small,self.width-260)
     D.text(self,P.time(now.minute),x,34,c.text,UIFont.Large,150)
