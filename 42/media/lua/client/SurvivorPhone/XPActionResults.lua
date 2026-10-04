@@ -38,6 +38,7 @@ function X.observeActionResult(root,day,skill,amount,name,meta)
     b.updatedDay=day;b.updatedMinute=meta.minute;b.updatedWorld=meta.world
     t.lastActionBySkill[skill]={skill=skill,level=meta.level,actionKey=meta.actionKey,actionLabel=meta.actionLabel,
         actionInstance=meta.actionInstance,day=day,minute=meta.minute,world=meta.world,exact=true}
+    t.revision=(tonumber(t.revision) or 0)+1
 end
 
 -- If an exact completion sample was recorded before an XP event is observed, keep the
