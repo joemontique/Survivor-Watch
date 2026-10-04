@@ -13,6 +13,7 @@ function X.ensure(root,day)
     t.names=t.names or {}
     t.actions=t.actions or {}
     t.lastBySkill=t.lastBySkill or {}
+    t.lastActionBySkill=t.lastActionBySkill or {}
     t.recentGains=t.recentGains or {}
     t.weight=t.weight or {samples={}}
     t.weight.samples=t.weight.samples or {}
@@ -96,6 +97,8 @@ function X.add(root,day,skill,amount,name,meta)
             trim(bucket.samples,8)
         end
         bucket.updatedDay=day;bucket.updatedMinute=meta.minute;bucket.updatedWorld=meta.world
+        t.lastActionBySkill[skill]={skill=skill,level=meta.level,actionKey=meta.actionKey,actionLabel=meta.actionLabel,
+            actionInstance=meta.actionInstance,day=day,minute=meta.minute,world=meta.world}
     end
 end
 
@@ -144,7 +147,7 @@ end
 
 function X.estimate(root,day,skill,level,remaining)
     local t=X.ensure(root,day)
-    local last=t.lastBySkill[skill]
+    local last=t.lastActionBySkill[skill]
     if not last or last.level~=level or not last.actionKey then return nil end
     local bySkill=t.actions[skill]
     local byLevel=bySkill and bySkill[tostring(level)]
