@@ -30,7 +30,6 @@ function A.record(player,rule,evidence,now)
     local rows=A.ensure(root).recent
     local name=A.names[rule] or rule:gsub('^Skill:','')
     local last=rows[#rows]
-    -- Aggregate repeated evidence within a game minute, without merging activities.
     if last and last.rule==rule and last.day==now.day and last.minute==now.minute then
         last.count=(last.count or 1)+1;last.evidence=evidence
     else
@@ -80,7 +79,7 @@ function A.xpContext(player,skillId,now)
     if (skillId=='AnimalCare' or skillId=='Husbandry') and (not spec or spec[1]~='Animal care XP') then return nil end
     local key,label=actionDetail(current.action)
     if not key then return nil end
-    return {key=key,label=label,type=current.action.Type}
+    return {key=key,label=label,type=current.action.Type,instance=tostring(current.action)}
 end
 
 function A.poll(player)
