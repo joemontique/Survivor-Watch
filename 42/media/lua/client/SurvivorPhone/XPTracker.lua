@@ -72,14 +72,29 @@ function X.add(root,day,skill,amount,name,meta)
     t.totals[skill]=(t.totals[skill] or 0)+amount
     t.names[skill]=name or skill
     meta=meta or {}
-    local row={skill=skill,name=name or skill,xp=amount,day=day,minute=meta.minute,world=meta.world,
-        level=meta.level,currentLevel=meta.currentLevel,actionKey=meta.actionKey,actionLabel=meta.actionLabel}
-    t.lastBySkill[skill]=row
-    table.insert(t.recentGains,row);trim(t.recentGains,40)
+    local previous=t.lastBySkill[skill]
+    local sameInstance=meta.actionInstance and previous and previous.actionInstance==meta.actionInstance and previous.level==meta.level
+    local row
+    if sameInstance then
+        previous.xp=(previous.xp or 0)+amount
+        previous.minute=meta.minute;previous.world=meta.world;previous.currentLevel=meta.currentLevel
+        row=previous
+    else
+        row={skill=skill,name=name or skill,xp=amount,day=day,minute=meta.minute,world=meta.world,
+            level=meta.level,currentLevel=meta.currentLevel,actionKey=meta.actionKey,actionLabel=meta.actionLabel,
+            actionInstance=meta.actionInstance}
+        t.lastBySkill[skill]=row
+        table.insert(t.recentGains,row);trim(t.recentGains,40)
+    end
     if meta.actionKey and meta.level~=nil and meta.level<10 then
         local bucket=actionBucket(t,skill,meta.level,meta.actionKey,meta.actionLabel)
-        table.insert(bucket.samples,{xp=amount,day=day,minute=meta.minute,world=meta.world})
-        trim(bucket.samples,8)
+        local last=bucket.samples[#bucket.samples]
+        if meta.actionInstance and last and last.instance==meta.actionInstance then
+            last.xp=(last.xp or 0)+amount;last.minute=meta.minute;last.world=meta.world
+        else
+            table.insert(bucket.samples,{xp=amount,day=day,minute=meta.minute,world=meta.world,instance=meta.actionInstance})
+            trim(bucket.samples,8)
+        end
         bucket.updatedDay=day;bucket.updatedMinute=meta.minute;bucket.updatedWorld=meta.world
     end
 end
