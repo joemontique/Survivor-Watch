@@ -40,6 +40,12 @@ local function validWatch(S,watch,player)
     return ok and value==true
 end
 
+local function watchRinging(watch)
+    if not watch or not watch.isRinging then return false end
+    local ok,value=pcall(function() return watch:isRinging() end)
+    return ok and value==true
+end
+
 function H:getWatch(S,force)
     if validWatch(S,self.watch,self.player) then return self.watch end
     self.watch=nil
@@ -59,6 +65,13 @@ function H:update()
         self.enabled=false;self.watch=nil;self:setX(-1000);self:setY(-1000);return
     end
     local watch=self:getWatch(S,false)
+    if watchRinging(watch) then
+        -- The vanilla clock/watch HUD owns alarm dismissal. Move our transparent
+        -- click target away until the alarm stops ringing.
+        self.enabled=false;self.pressed=false
+        self:setX(-1000);self:setY(-1000);self:setWidth(1);self:setHeight(1)
+        return
+    end
     local x,y,w,h=clockBounds()
     if not watch or not x then
         self.enabled=false;self:setX(-1000);self:setY(-1000);self:setWidth(1);self:setHeight(1);return
@@ -73,6 +86,13 @@ end
 
 function H:onMouseDown(x,y)
     if not self.enabled then return false end
+    local S=SurvivorPhone
+    local watch=S and self:getWatch(S,false) or nil
+    if watchRinging(watch) then
+        self.enabled=false;self.pressed=false
+        self:setX(-1000);self:setY(-1000);self:setWidth(1);self:setHeight(1)
+        return false
+    end
     self.pressed=true
     return true
 end
