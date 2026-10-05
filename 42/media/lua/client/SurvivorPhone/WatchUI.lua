@@ -78,17 +78,6 @@ function W:chip(id,label,x,y,w,h,action,active)
     self:region(id,x,y,w,h,action)
 end
 
-local function muted(root)
-    local s=root.settings or {}
-    return s.notificationsMuted==true or s.dnd==true
-end
-
-local function toggleMute(root)
-    local value=not muted(root)
-    root.settings.notificationsMuted=value
-    root.settings.dnd=value
-end
-
 local function urgentNeed(root)
     local active,activeScore,soon
     for _,bar in ipairs(((root.needs or {}).bars or {})) do
@@ -143,9 +132,7 @@ function W:prerender()
     D.round(self,7,7,self.width-14,self.height-14,c.card,0.96,14)
     local x,y,w=self.pad,10,self.width-self.pad*2
     local _,planner,now=SurvivorPhoneData.get(self.player)
-    D.text(self,'SURVIVOR WATCH',x,y,c.muted,nil,w-70)
-    local mute=muted(self.root)
-    self:chip('mute',mute and 'Muted' or 'Alerts',self.width-78,y-2,48,20,function() toggleMute(self.root) end,mute)
+    D.text(self,'SURVIVOR WATCH',x,y,c.muted,nil,w-42)
     D.text(self,'x',self.width-24,y,c.muted)
     self:region('close',self.width-31,4,28,28,function() self:close(true) end)
     y=y+self.lh+1
