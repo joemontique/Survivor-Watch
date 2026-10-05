@@ -40,10 +40,14 @@ local function buildRows(player,root,day,tracker)
         end
     end
     table.sort(rows,function(a,b)
-        local ae=a.estimate and 1 or 0;local be=b.estimate and 1 or 0
-        if ae~=be then return ae>be end
-        if a.today~=b.today then return a.today>b.today end
-        if a.state.level~=b.state.level then return a.state.level>b.state.level end
+        if a.state.maxed~=b.state.maxed then return not a.state.maxed end
+        if not a.state.maxed then
+            local ar,br=tonumber(a.state.remaining),tonumber(b.state.remaining)
+            if ar~=nil and br~=nil and ar~=br then return ar<br end
+            if (ar~=nil)~=(br~=nil) then return ar~=nil end
+            local ap,bp=tonumber(a.state.ratio) or 0,tonumber(b.state.ratio) or 0
+            if ap~=bp then return ap>bp end
+        end
         return a.skill.name<b.skill.name
     end)
     return rows
@@ -114,22 +118,27 @@ local function drawSkillCard(panel,y,row)
         D.text(panel,localLine,x+14,y+72,c.text,nil,w-28)
 
         if estimate then
-            local rate='+'..number(estimate.rate or 0)..' XP'
-            local actionLine=estimate.confidence..'  /  '..(estimate.actionLabel or 'Last action')..'  '..rate
-            local actionColor=estimate.confidence=='Updating' and c.amber or estimate.confirmed and c.mint or c.muted
-            D.text(panel,actionLine,x+14,y+91,actionColor,nil,w-28)
-            local estimateText
-            if estimate.confirmed and (estimate.rate or 0)<=0 then
-                estimateText='This action currently grants no XP.'
-            elseif estimate.repeats then
-                estimateText=estimate.repeats..' more similar action'..(estimate.repeats==1 and '' or 's')..' estimated to reach Level '..(state.level+1)
-            elseif estimate.confidence=='Updating' then
-                estimateText='XP per action changed. Repeating the action will relearn the new rate.'
-            elseif (estimate.rate or 0)<=0 then
-                estimateText='Last attempt: 0 XP. Repeat it once more to confirm.'
+            local actionLabel=estimate.actionLabel or 'Last action'
+            local actionLine,actionColor,estimateText
+            if estimate.confirmed then
+                actionLine='Average ('..tostring(estimate.count or 0)..' samples)  /  '..actionLabel..'  +'..number(estimate.rate or 0)..' XP/action'
+                actionColor=(estimate.rate or 0)>0 and c.mint or c.muted
+                if (estimate.rate or 0)<=0 then
+                    estimateText='This action currently grants no XP.'
+                elseif estimate.repeats then
+                    estimateText=estimate.repeats..' more similar action'..(estimate.repeats==1 and '' or 's')..' estimated to reach Level '..(state.level+1)
+                else
+                    estimateText='Average updates after every matching action.'
+                end
             else
-                estimateText='Learning this action. Repeat it once more before a level estimate is shown.'
+                local sampleCount=estimate.sampleCount or estimate.count or 0
+                actionLine='Learning '..sampleCount..'/3  /  '..actionLabel
+                if estimate.lastXP~=nil then actionLine=actionLine..'  /  Last +'..number(estimate.lastXP)..' XP' end
+                actionColor=c.muted
+                estimateText=sampleCount==1 and 'Two more matching actions are needed before an average is shown.'
+                    or 'One more matching action is needed before an average is shown.'
             end
+            D.text(panel,actionLine,x+14,y+91,actionColor,nil,w-28)
             D.text(panel,estimateText,x+14,y+91+panel.lh,estimate.repeats and c.text or c.muted,nil,w-28)
         end
     end
@@ -147,7 +156,7 @@ function M.draw(panel,y,now)
     y=drawWeight(panel,y,now,weight)
 
     y=panel:section('SKILL LEVELS',y)
-    y=y+D.wrap(panel,'Current XP and level-end XP are cumulative totals. Repeat estimates use only recent matching actions from the current skill level and relearn whenever the XP rate changes.',x,y,w,c.muted)+12
+    y=y+D.wrap(panel,'Skills are ordered by XP remaining to the next level. Repeat estimates begin after 3 matching actions and use a rolling average of the latest 8 samples from the current skill level.',x,y,w,c.muted)+12
 
     local rows=state.rows
     if #rows==0 then
