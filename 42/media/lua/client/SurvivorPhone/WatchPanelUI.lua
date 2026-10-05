@@ -13,11 +13,6 @@ local needNames={thirst='Hydration',hunger='Fuel',fatigue='Recovery',endurance='
 local needColors={thirst=c.blue,hunger=c.mint,fatigue=c.purple,endurance=c.amber}
 
 local function clamp01(v) return math.max(0,math.min(1,v or 0)) end
-local function muted(root)
-    local s=root.settings or {}
-    return s.notificationsMuted==true or s.dnd==true
-end
-
 function U:new(player,item)
     local o=B.new(self,player,item)
     o.app='home'
@@ -151,11 +146,8 @@ function U:drawSettings(y,now)
     y=y+10
 
     y=self:section('NOTIFICATIONS',y)
-    self:button('mute','Mute popup notifications  /  '..(muted(self.root) and 'On' or 'Off'),x,y,w,h,function()
-        local value=not muted(self.root);s.notificationsMuted=value;s.dnd=value
-    end,muted(self.root) and 'primary' or nil)
-    y=y+h+10
-    y=self:slider('lead','Need popup lead time',s.leadMinutes,10,120,x,y,w,function(v) s.leadMinutes=math.floor(v/5+0.5)*5 end,s.leadMinutes..' game min')
+    y=y+D.wrap(self,'Popup notifications are disabled. Survivor Watch still records planner, needs, sleep and XP-related events in notification history.',x,y,w,c.muted)+10
+    y=self:slider('lead','Need warning lead time',s.leadMinutes,10,120,x,y,w,function(v) s.leadMinutes=math.floor(v/5+0.5)*5 end,s.leadMinutes..' game min')
     y=y+6
     self:button('history','Notification history',x,y,w,h,function() self:showApp('history') end)
     y=y+h+18
@@ -257,9 +249,6 @@ function U:prerender()
     local fy=self.height-self.footer+4
     local free=self.root.planner.freeRoam==true
     self:button('free-roam','Free Roam  /  '..(free and 'On' or 'Off'),self.pad,fy,150,28,function() self.root.planner.freeRoam=not self.root.planner.freeRoam end,free and 'primary' or nil)
-    self:button('footer-mute',muted(self.root) and 'Alerts muted' or 'Alerts on',self.width-self.pad-112,fy,112,28,function()
-        local value=not muted(self.root);self.root.settings.notificationsMuted=value;self.root.settings.dnd=value
-    end,muted(self.root) and 'danger' or nil)
 end
 
 return U
