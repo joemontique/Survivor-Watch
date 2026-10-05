@@ -28,12 +28,6 @@ function X.ensure(root,day)
     return t
 end
 
-function X.bumpRevision(root,day)
-    local t=X.ensure(root,day)
-    t.revision=(tonumber(t.revision) or 0)+1
-    return t.revision
-end
-
 local function actionBucket(t,skill,level,key,label)
     if not key then return nil end
     t.actions[skill]=t.actions[skill] or {}
@@ -50,28 +44,17 @@ local function actionBucket(t,skill,level,key,label)
     return bucket
 end
 
-local function closeEnough(a,b)
-    if not a or not b then return false end
-    local scale=math.max(math.abs(a),math.abs(b),0.01)
-    return math.abs(a-b)<=math.max(0.05,scale*0.08)
-end
-
 function X.rate(bucket)
     local samples=bucket and bucket.samples or {}
     local n=#samples
-    if n==0 then return nil,'Learning',false,0 end
-    local last=samples[n].xp
-    if n==1 then return last,'Learning',false,1 end
-    local previous=samples[n-1].xp
-    if not closeEnough(last,previous) then return last,'Updating',false,1 end
-    local values={last,previous}
-    for i=n-2,math.max(1,n-4),-1 do
-        if closeEnough(samples[i].xp,last) then table.insert(values,samples[i].xp) else break end
+    if n<3 then return nil,'Learning',false,n end
+    local first=math.max(1,n-7)
+    local sum,count=0,0
+    for i=first,n do
+        sum=sum+(tonumber(samples[i].xp) or 0)
+        count=count+1
     end
-    local sum=0
-    for _,value in ipairs(values) do sum=sum+value end
-    local rate=sum/#values
-    return rate,#values>=3 and 'Stable' or 'Estimated',true,#values
+    return count>0 and sum/count or nil,'Average',true,count
 end
 
 function X.add(root,day,skill,amount,name,meta)
@@ -162,8 +145,11 @@ function X.estimate(root,day,skill,level,remaining)
     local bucket=byLevel and byLevel[last.actionKey]
     if not bucket then return nil end
     local rate,confidence,confirmed,count=X.rate(bucket)
+    local samples=bucket.samples or {}
+    local lastSample=samples[#samples]
     local repeats=confirmed and rate and rate>0 and remaining and math.ceil(remaining/rate) or nil
-    return {rate=rate,confidence=confidence,confirmed=confirmed,count=count,repeats=repeats,
+    return {rate=rate,confidence=confidence,confirmed=confirmed,count=count,sampleCount=#samples,
+        lastXP=lastSample and tonumber(lastSample.xp) or nil,repeats=repeats,
         actionKey=bucket.key,actionLabel=bucket.label or last.actionLabel or bucket.key,last=last}
 end
 
