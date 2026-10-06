@@ -28,9 +28,14 @@ function N.fullness(player,hunger,level)
     local body=player.getBodyDamage and player:getBodyDamage()
     local timer=body and body:getHealthFromFoodTimer() or 0
     local standard=body and body:getStandardHealthFromFoodTime() or 1600
-    -- Fullness and hunger are separate native values. This is a normalized reserve,
-    -- not an invented native percentage. The upper fifth represents the food bonus.
-    local fill=0.8*(1-clamp(hunger))
+    -- CharacterStat.HUNGER has appeared on both normalized (0..1) and percentage
+    -- (0..100) scales. Normalize it before drawing the reserve gauge so reaching
+    -- Peckish warns the player without incorrectly looking empty.
+    local raw=tonumber(hunger) or 0
+    local normalized=raw>1 and raw/100 or raw
+    -- The base hunger reserve uses 80% of the gauge; the top 20% is the temporary
+    -- food/fullness bonus. Zero is reserved for the extreme end of starvation.
+    local fill=0.8*(1-clamp(normalized))
     if level==0 then
         fill=fill+0.2*clamp(timer/math.max(1,standard*2))
         if fed>=3 then return 1,fed,timer end
