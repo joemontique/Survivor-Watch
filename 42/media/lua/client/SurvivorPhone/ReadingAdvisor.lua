@@ -30,7 +30,7 @@ local function discoverBooks()
     for i=0,items:size()-1 do
         local item=items:get(i)
         local trained=safe(function() return item:getSkillTrained() end)
-        local start=safe(function() return item:getLevelSkillTrained() end)
+        local start=safe(function() return item:getLvlSkillTrained() end)
         if trained and start and SkillBook and SkillBook[trained] then
             R.books[trained]=R.books[trained] or {}
             R.books[trained][tonumber(start)]={
@@ -44,12 +44,12 @@ local function discoverBooks()
 end
 
 local function multiplier(player,perk)
-    if not player or not player.getXp then return 1 end
+    if not player or not player.getXp then return 0 end
     local xp=player:getXp()
-    if not xp or not xp.getMultiplier then return 1 end
+    if not xp or not xp.getMultiplier then return 0 end
     local value=safe(function() return xp:getMultiplier(perk) end)
     value=tonumber(value)
-    return value and value>0 and value or 1
+    return value and value>0 and value or 0
 end
 
 local function expected(entry,volume)
@@ -79,7 +79,7 @@ function R.recommendations(player,tracker,skills)
                             skill=skill.name,skillId=skill.id,today=today,level=level,volume=volume,
                             book=found and found.name or fallback,
                             levelStart=start,levelEnd=volume*2,current=current,full=full,
-                            status=current<=1.01 and 'Not read' or 'Partially read'
+                            status=current<=0.01 and 'Not read' or 'Partially read'
                         })
                     end
                 end
