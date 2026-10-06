@@ -145,10 +145,13 @@ function U:drawSettings(y,now)
     y=self:slider('watch-opacity','Watch opacity',s.watchOpacity,0.35,1,x,y,w,function(v) s.watchOpacity=v end,math.floor(s.watchOpacity*100+0.5)..'%')
     y=y+10
 
-    y=self:section('NOTIFICATIONS',y)
-    y=y+D.wrap(self,'Popup notifications are disabled. Survivor Watch still records planner, needs, sleep and XP-related events in notification history.',x,y,w,c.muted)+10
-    y=self:slider('lead','Need warning lead time',s.leadMinutes,10,120,x,y,w,function(v) s.leadMinutes=math.floor(v/5+0.5)*5 end,s.leadMinutes..' game min')
-    y=y+6
+    y=self:section('NEEDS FORECAST',y)
+    y=y+D.wrap(self,'Controls how early Survivor Watch starts treating predicted hunger, thirst and fatigue as upcoming needs.',x,y,w,c.muted)+10
+    y=self:slider('lead','Forecast lead time',s.leadMinutes,10,120,x,y,w,function(v) s.leadMinutes=math.floor(v/5+0.5)*5 end,s.leadMinutes..' game min')
+    y=y+12
+
+    y=self:section('HISTORY',y)
+    y=y+D.wrap(self,'Popup notifications are disabled. Planner, needs, sleep and XP-related events are still recorded here.',x,y,w,c.muted)+8
     self:button('history','Notification history',x,y,w,h,function() self:showApp('history') end)
     y=y+h+18
 
