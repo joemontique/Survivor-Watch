@@ -23,9 +23,9 @@ local function running(player)
         local ok,vehicle=pcall(function() return player:getVehicle() end)
         if ok and vehicle then return false end
     end
-    if not player.IsRunning then return false end
-    local ok,value=pcall(function() return player:IsRunning() end)
-    return ok and value==true
+    local okRun,isRun=pcall(function() return player:IsRunning() end)
+    local okSprint,isSprint=pcall(function() return player:isSprinting() end)
+    return (okRun and isRun==true) or (okSprint and isSprint==true)
 end
 
 local function fitness(player)
@@ -60,7 +60,7 @@ local function start(player,root,now,seconds,pos,xp,level)
 end
 
 local function addSample(rt,data)
-    if not rt or rt.xp<=0 then return end
+    if not rt then return end
     local key=tostring(rt.level or -1)
     data.byLevel[key]=data.byLevel[key] or {}
     local row={day=rt.day,level=rt.level,seconds=rt.seconds,gameMinutes=rt.gameMinutes,tiles=rt.tiles,xp=rt.xp,xpEvents=rt.xpEvents}
@@ -132,8 +132,8 @@ function R.poll(player)
 end
 
 local function addTotals(total,row)
-    if not row or not row.xp or row.xp<=0 then return end
-    total.xp=total.xp+row.xp
+    if not row then return end
+    total.xp=total.xp+(row.xp or 0)
     total.seconds=total.seconds+(row.seconds or 0)
     total.gameMinutes=total.gameMinutes+(row.gameMinutes or 0)
     total.tiles=total.tiles+(row.tiles or 0)
