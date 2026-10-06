@@ -155,7 +155,9 @@ function U:drawTrackerSummary(y,now)
     local gap=8
     local cols=self.compact and 2 or 3
     local tileW=(w-36-gap*(cols-1))/cols
-    local values={{'Routine',done..' / '..total,c.mint},{'XP','+'..string.format('%.1f',xpTotal),c.purple},{'Reset',(self.root.sleepCoach and self.root.sleepCoach.alarm and self.root.sleepCoach.alarm.armed) and P.time(self.root.sleepCoach.alarm.targetMinute) or 'Ready',c.blue}}
+    local sleepAlarm=self.root.sleepCoach and self.root.sleepCoach.alarm or {}
+    local resetText=sleepAlarm.armed and (sleepAlarm.targetLabel or P.time(sleepAlarm.targetMinute)) or 'Ready'
+    local values={{'Routine',done..' / '..total,c.mint},{'XP','+'..string.format('%.1f',xpTotal),c.purple},{'Reset',resetText,c.blue}}
     for i,row in ipairs(values) do
         local tx=x+18+((i-1)%cols)*(tileW+gap)
         local ty=tileY+math.floor((i-1)/cols)*(self.lh*2+34)
@@ -305,7 +307,7 @@ function U:drawSettings(y,now)
         s.sleepResetEnabled=not s.sleepResetEnabled
         if not s.sleepResetEnabled then SurvivorPhoneSleepCoach.cancel(self.root) end
     end,s.sleepResetEnabled and 'primary' or nil);y=y+h+10
-    y=y+D.wrap(self,'Sleep Reset learns your usual bedtime and wake time. When armed, it sets a shorter sleep alarm to protect tomorrow instead of letting a late night roll into a late wake.',x,y,w,c.muted)+16
+    y=y+D.wrap(self,'Sleep Reset learns your routine, then uses a short corrective 3-4 game-hour sleep when fatigue would otherwise push your schedule off course.',x,y,w,c.muted)+16
     y=self:slider('lead','Need popup lead time',s.leadMinutes,10,120,x,y,w,function(v) s.leadMinutes=math.floor(v/5+0.5)*5 end,s.leadMinutes..' game min')
     self:button('history','Notification history',x,y,w,h,function() self:showApp('history') end);y=y+h+10
     self:button('travel','Places & travel history',x,y,w,h,function() self:showApp('travel') end);y=y+h+10
