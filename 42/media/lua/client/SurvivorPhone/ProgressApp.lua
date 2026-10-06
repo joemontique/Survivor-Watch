@@ -141,7 +141,7 @@ local function fitnessLines(panel,state)
     local remaining='Estimated to Level '..(state.level+1)..': '
     if estimate.secondsLeft then remaining=remaining..C.shortDuration(estimate.secondsLeft)..' running' else remaining=remaining..'-- running time' end
     if estimate.tilesLeft then remaining=remaining..'  /  '..number(math.floor(estimate.tilesLeft+0.5))..' tiles' end
-    local basis='Based on '..estimate.sessions..' XP-producing run session'..(estimate.sessions==1 and '' or 's')
+    local basis='Based on '..estimate.sessions..' run session'..(estimate.sessions==1 and '' or 's')
     if estimate.events and estimate.events>estimate.sessions then basis=basis..' / '..estimate.events..' Fitness XP gains' end
     return {rate,remaining,basis},true
 end
