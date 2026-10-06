@@ -160,7 +160,7 @@ function R.estimate(root,player,level,remaining)
     local secondsLeft=xpPerSecond and remaining and remaining/xpPerSecond or nil
     local gameMinutesLeft=xpPerGameMinute and remaining and remaining/xpPerGameMinute or nil
     local tilesLeft=xpPerTile and remaining and remaining/xpPerTile or nil
-    local confirmed=total.sessions>=3 or total.events>=3
+    local confirmed=total.events>=3 or (total.sessions>=3 and total.events>=2)
     return {
         learned=true,confirmed=confirmed,confidence=confirmed and 'Learned' or 'Provisional',
         xp=total.xp,seconds=total.seconds,gameMinutes=total.gameMinutes,tiles=total.tiles,
