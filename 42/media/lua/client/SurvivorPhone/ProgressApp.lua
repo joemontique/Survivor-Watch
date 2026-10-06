@@ -2,6 +2,8 @@ require 'SurvivorPhone/ActionRecognition'
 require 'SurvivorPhone/XPTracker'
 require 'SurvivorPhone/Widgets'
 require 'SurvivorPhone/GameClock'
+require 'SurvivorPhone/ReadingAdvisor'
+require 'SurvivorPhone/RunningTracker'
 
 SurvivorWatchProgress=SurvivorWatchProgress or {}
 local M=SurvivorWatchProgress
@@ -9,6 +11,8 @@ local D=SurvivorPhoneWidgets
 local X=SurvivorPhoneXP
 local R=SurvivorPhoneRecognition
 local C=SurvivorPhoneClock
+local Read=SurvivorPhoneReading
+local Run=SurvivorPhoneRunning
 local c=D.c
 
 local function number(value)
@@ -94,10 +98,57 @@ local function drawWeight(panel,y,now,weight)
     return y
 end
 
+local function drawSuggestedReading(panel,y,tracker)
+    local x,w=panel.pad,panel.bodyW
+    local suggestions=Read.recommendations(panel.player,tracker,R.skillList())
+    y=panel:section('SUGGESTED READING',y)
+    if #suggestions==0 then
+        return y+D.wrap(panel,'No missing skill-book bonus detected for skills earning XP today.',x,y,w,c.mint)+12
+    end
+    y=y+D.wrap(panel,'You earned XP in these skills today without the full book bonus for the current level range.',x,y,w,c.muted)+8
+    for _,row in ipairs(suggestions) do
+        local h=64
+        panel:card(x,y,w,h,c.card,0.90)
+        D.text(panel,row.book,x+12,y+9,c.text,UIFont.Medium,w-24)
+        local range='Levels '..row.levelStart..'-'..row.levelEnd
+        local status=row.status..'  /  '..range..'  /  Today +'..number(row.today)
+        D.text(panel,status,x+12,y+31,row.status=='Not read' and c.amber or c.purple,nil,w-24)
+        local bonus='Book bonus x'..number(row.current)..' of x'..number(row.full)
+        D.text(panel,bonus,x+12,y+47,c.muted,nil,w-24)
+        y=y+h+8
+    end
+    return y+4
+end
+
+local function fitnessLines(panel,state)
+    local estimate=Run.estimate(panel.root,panel.player,state.level,state.remaining)
+    local today=estimate.today or {}
+    local runToday=(today.seconds or 0)>0 or (today.tiles or 0)>0
+    if not estimate.learned then
+        if not runToday then return nil end
+        return {
+            'Running tracker active  /  '..C.shortDuration(today.seconds or 0)..' running  /  '..number(today.tiles or 0)..' tiles',
+            'Waiting for a Fitness XP gain before predicting time and distance.'
+        },false
+    end
+    local confidence=estimate.confidence or 'Provisional'
+    local rate='Running rate ('..confidence..')'
+    if estimate.xpPerMinute then rate=rate..'  /  +'..number(estimate.xpPerMinute)..' XP/real min' end
+    if estimate.xpPer100Tiles then rate=rate..'  /  +'..number(estimate.xpPer100Tiles)..' XP/100 tiles' end
+    local remaining='Estimated to Level '..(state.level+1)..': '
+    if estimate.secondsLeft then remaining=remaining..C.shortDuration(estimate.secondsLeft)..' running' else remaining=remaining..'-- running time' end
+    if estimate.tilesLeft then remaining=remaining..'  /  '..number(math.floor(estimate.tilesLeft+0.5))..' tiles' end
+    local basis='Based on '..estimate.sessions..' XP-producing run session'..(estimate.sessions==1 and '' or 's')
+    if estimate.events and estimate.events>estimate.sessions then basis=basis..' / '..estimate.events..' Fitness XP gains' end
+    return {rate,remaining,basis},true
+end
+
 local function drawSkillCard(panel,y,row)
     local x,w=panel.pad,panel.bodyW
     local skill,state,estimate=row.skill,row.state,row.estimate
-    local estimateLines=estimate and 2 or 0
+    local runLines,runLearned
+    if skill.id=='Fitness' and not state.maxed then runLines,runLearned=fitnessLines(panel,state) end
+    local estimateLines=runLines and #runLines or estimate and 2 or 0
     local h=state.maxed and 72 or (96+estimateLines*panel.lh)
     panel:card(x,y,w,h,c.card,0.90)
     D.text(panel,skill.name,x+14,y+10,c.text,UIFont.Medium,w-130)
@@ -117,7 +168,11 @@ local function drawSkillCard(panel,y,row)
         if row.today>0 then localLine=localLine..'    Today +'..number(row.today) end
         D.text(panel,localLine,x+14,y+72,c.text,nil,w-28)
 
-        if estimate then
+        if runLines then
+            for i,line in ipairs(runLines) do
+                D.text(panel,line,x+14,y+91+(i-1)*panel.lh,runLearned and (i==2 and c.text or c.mint) or c.muted,nil,w-28)
+            end
+        elseif estimate then
             local actionLabel=estimate.actionLabel or 'Last action'
             local actionLine,actionColor,estimateText
             if estimate.confirmed then
@@ -154,9 +209,10 @@ function M.draw(panel,y,now)
 
     y=panel:heading('Progress','Live skill XP, next-level targets, adaptive action estimates and body-weight trend.',y)
     y=drawWeight(panel,y,now,weight)
+    y=drawSuggestedReading(panel,y,tracker)
 
     y=panel:section('SKILL LEVELS',y)
-    y=y+D.wrap(panel,'Skills are ordered by XP remaining to the next level. Repeat estimates begin after 3 matching actions and use a rolling average of the latest 8 samples from the current skill level.',x,y,w,c.muted)+12
+    y=y+D.wrap(panel,'Skills are ordered by XP remaining to the next level. Repeatable actions use recent matching samples; Fitness learns from continuous running time, distance and observed Fitness XP.',x,y,w,c.muted)+12
 
     local rows=state.rows
     if #rows==0 then
