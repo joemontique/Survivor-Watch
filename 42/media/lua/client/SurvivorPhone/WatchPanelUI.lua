@@ -9,7 +9,7 @@ local P=SurvivorPhonePlanner
 local X=SurvivorPhoneXP
 local c=D.c
 
-local needNames={thirst='Hydration',hunger='Hunger',fatigue='Recovery',endurance='Stamina'}
+local needNames={thirst='Hydration',hunger='Hunger',fatigue='Rest',endurance='Stamina'}
 local needColors={thirst=c.blue,hunger=c.mint,fatigue=c.purple,endurance=c.amber}
 
 local function clamp01(v) return math.max(0,math.min(1,v or 0)) end
@@ -59,9 +59,11 @@ function U:drawVitalsStrip(y)
         local color=bar.key=='hunger' and level>=1 and c.red or level>=3 and c.red or level>=1 and c.amber or needColors[bar.key] or c.mint
         local value=clamp01(bar.fill)
         local pct=math.floor((bar.percent or math.min(99.9,value*100))+0.5)..'%'
+        local reading=pct
+        if bar.key=='hunger' and level>0 and bar.status then reading=bar.status..' / '..pct end
         self:card(bx,by,cellW,cellH,c.raised,0.72)
         D.text(self,needNames[bar.key] or bar.label,bx+10,by+8,c.muted,nil,cellW-20)
-        D.text(self,pct,bx+10,by+25,color,UIFont.Medium,cellW-20)
+        D.text(self,reading,bx+10,by+25,color,UIFont.Medium,cellW-20)
         D.round(self,bx+10,by+46,cellW-20,5,c.card,1,3)
         if value>0 then D.round(self,bx+10,by+46,(cellW-20)*value,5,color,1,3) end
     end
