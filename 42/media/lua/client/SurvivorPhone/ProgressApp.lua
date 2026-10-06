@@ -46,6 +46,9 @@ local function buildRows(player,root,day,tracker)
     table.sort(rows,function(a,b)
         if a.state.maxed~=b.state.maxed then return not a.state.maxed end
         if not a.state.maxed then
+            local aActive=(tonumber(a.today) or 0)>0
+            local bActive=(tonumber(b.today) or 0)>0
+            if aActive~=bActive then return aActive end
             local ar,br=tonumber(a.state.remaining),tonumber(b.state.remaining)
             if ar~=nil and br~=nil and ar~=br then return ar<br end
             if (ar~=nil)~=(br~=nil) then return ar~=nil end
@@ -212,7 +215,7 @@ function M.draw(panel,y,now)
     y=drawSuggestedReading(panel,y,tracker)
 
     y=panel:section('SKILL LEVELS',y)
-    y=y+D.wrap(panel,'Skills are ordered by XP remaining to the next level. Repeatable actions use recent matching samples; Fitness learns from continuous running time, distance and observed Fitness XP.',x,y,w,c.muted)+12
+    y=y+D.wrap(panel,'Skills with XP gained today are listed first, then sorted by XP remaining to the next level. Zero-XP skills follow. Repeatable actions use recent matching samples; Fitness learns from continuous running time, distance and observed Fitness XP.',x,y,w,c.muted)+12
 
     local rows=state.rows
     if #rows==0 then
