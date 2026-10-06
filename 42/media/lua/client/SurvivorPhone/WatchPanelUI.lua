@@ -100,7 +100,8 @@ function U:drawDailySnapshot(y,now)
     local gap=8
     local cellW=(w-gap*2)/3
     local h=58
-    local rows={{'Tasks',done..' / '..total,c.mint},{'XP today','+'..string.format('%.1f',xpTotal),c.purple},{'Sleep Reset',alarm.armed and P.time(alarm.targetMinute) or 'Ready',c.blue}}
+    local resetText=alarm.armed and (alarm.targetLabel or P.time(alarm.targetMinute)) or 'Ready'
+    local rows={{'Tasks',done..' / '..total,c.mint},{'XP today','+'..string.format('%.1f',xpTotal),c.purple},{'Sleep Reset',resetText,c.blue}}
     for i,row in ipairs(rows) do
         local bx=x+(i-1)*(cellW+gap)
         self:card(bx,y,cellW,h,c.raised,0.70)
