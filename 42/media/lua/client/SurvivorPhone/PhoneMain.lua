@@ -10,6 +10,7 @@ require 'SurvivorPhone/ClockHotspot'
 require 'SurvivorPhone/Notifications'
 require 'SurvivorPhone/NativeHooks'
 require 'SurvivorPhone/SleepCoach'
+require 'SurvivorPhone/RunningTracker'
 SurvivorPhone=SurvivorPhone or {}
 local S=SurvivorPhone
 S.windows=S.windows or {};S.watchWindows=S.watchWindows or {};S.nextPoll={};S.lastMinute={};S.legacyItemType='SurvivorPhone.CellPhone';S.version='1.6.5'
@@ -102,7 +103,7 @@ function S.onCreatePlayer(index,player)
     S.removeLegacyPhone(player)
     root.receivedPhone=nil
     SurvivorPhoneRecognition.snapshots[player]=nil;SurvivorPhoneRecognition.levels[player]=nil;SurvivorPhoneRecognition.sleeping[player]=nil
-    SurvivorPhoneActivity.current[player]=nil;SurvivorPhoneTravel.runtime[player]=nil
+    SurvivorPhoneActivity.current[player]=nil;SurvivorPhoneTravel.runtime[player]=nil;SurvivorPhoneRunning.runtime[player]=nil
     SurvivorPhoneRecognition.scan(player)
     SurvivorPhoneHooks.install()
     SurvivorPhoneMechanicsXP.install()
@@ -119,6 +120,7 @@ function S.poll(player)
     SurvivorPhoneHooks.safe('Travel observations',SurvivorPhoneTravel.poll,player)
     SurvivorPhoneHooks.safe('Activity observations',SurvivorPhoneLearning.poll,player)
     SurvivorPhoneHooks.safe('XP tracking',SurvivorPhoneRecognition.scan,player)
+    SurvivorPhoneHooks.safe('Running fitness tracking',SurvivorPhoneRunning.poll,player)
     SurvivorPhoneHooks.safe('Fishing maintenance',SurvivorPhoneFishing.update,player)
     SurvivorPhoneHooks.safe('Needs tracking',SurvivorPhoneNeeds.update,player)
     SurvivorPhoneHooks.safe('Sleep reset coach',SurvivorPhoneSleepCoach.poll,player)
