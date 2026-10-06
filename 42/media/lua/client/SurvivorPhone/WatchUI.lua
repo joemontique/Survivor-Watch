@@ -12,7 +12,7 @@ local P=SurvivorPhonePlanner
 local C=SurvivorPhoneClock
 local c=D.c
 
-local needNames={thirst='Hydration',hunger='Hunger',fatigue='Recovery',endurance='Stamina'}
+local needNames={thirst='Hydration',hunger='Hunger',fatigue='Rest',endurance='Stamina'}
 local needColors={thirst=c.blue,hunger=c.mint,fatigue=c.purple,endurance=c.amber}
 local needPriority={fatigue=3,thirst=2,hunger=1}
 
