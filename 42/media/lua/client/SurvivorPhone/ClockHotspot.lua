@@ -31,6 +31,19 @@ local function clockBounds()
     return tonumber(x) or 0,tonumber(y) or 0,math.max(1,tonumber(w) or 1),math.max(24,okH and tonumber(h) or 44)
 end
 
+local function clockTimeBounds()
+    local x,y,w,h=clockBounds()
+    if not x then return nil end
+    -- The vanilla digital-watch face places the time in the upper-left portion,
+    -- with the alarm control to its right and date/temperature below. Survivor
+    -- Watch only owns the time digits; all other clock controls stay vanilla.
+    local insetX=math.max(2,math.floor(w*0.02))
+    local insetY=math.max(2,math.floor(h*0.05))
+    local timeW=math.max(36,math.floor(w*0.64))
+    local timeH=math.max(18,math.floor(h*0.52))
+    return x+insetX,y+insetY,math.min(timeW,w-insetX),math.min(timeH,h-insetY)
+end
+
 local function validWatch(S,watch,player)
     if not S or not watch or not player then return false end
     local ok,value=pcall(function()
@@ -72,7 +85,7 @@ function H:update()
         self:setX(-1000);self:setY(-1000);self:setWidth(1);self:setHeight(1)
         return
     end
-    local x,y,w,h=clockBounds()
+    local x,y,w,h=clockTimeBounds()
     if not watch or not x then
         self.enabled=false;self:setX(-1000);self:setY(-1000);self:setWidth(1);self:setHeight(1);return
     end
@@ -81,7 +94,8 @@ function H:update()
 end
 
 function H:prerender()
-    -- Intentionally transparent. This panel only makes the vanilla watch/time display clickable.
+    -- Intentionally transparent. Only the vanilla time digits are intercepted;
+    -- alarm controls and the rest of the vanilla clock remain clickable.
 end
 
 function H:onMouseDown(x,y)
