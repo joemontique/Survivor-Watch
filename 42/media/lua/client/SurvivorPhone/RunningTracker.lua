@@ -90,16 +90,22 @@ function R.poll(player)
     if not pos or xp==nil or level==nil then return end
 
     local rt=R.runtime[player]
-    if rt and (rt.root~=root or rt.level~=level or seconds<rt.lastReal or now.worldMinute<rt.lastWorld or seconds-rt.lastReal>3) then
-        R.finish(player,rt.level~=level and 'level-up' or 'interrupted')
+    if rt and (rt.root~=root or seconds<rt.lastReal or now.worldMinute<rt.lastWorld or seconds-rt.lastReal>3) then
+        R.finish(player,'interrupted')
         rt=nil
     end
 
     if rt then
+        -- Capture the XP delta before closing a session on level-up so the final
+        -- gain that crossed the level boundary belongs to the run that earned it.
         local xpGain=xp-(rt.lastXP or xp)
         if xpGain>0 and xpGain==xpGain then
             rt.xp=rt.xp+xpGain;rt.xpEvents=rt.xpEvents+1
             data.today.xp=(data.today.xp or 0)+xpGain
+        end
+        if rt.level~=level then
+            R.finish(player,'level-up')
+            rt=nil
         end
     end
 
@@ -131,14 +137,14 @@ function R.poll(player)
     rt.lastReal=seconds;rt.lastWorld=now.worldMinute;rt.lastPos=pos;rt.lastXP=xp
 end
 
-local function addTotals(total,row)
+local function addTotals(total,row,countSession)
     if not row then return end
     total.xp=total.xp+(row.xp or 0)
     total.seconds=total.seconds+(row.seconds or 0)
     total.gameMinutes=total.gameMinutes+(row.gameMinutes or 0)
     total.tiles=total.tiles+(row.tiles or 0)
     total.events=total.events+(row.xpEvents or 0)
-    total.sessions=total.sessions+1
+    if countSession~=false then total.sessions=total.sessions+1 end
 end
 
 function R.estimate(root,player,level,remaining)
@@ -147,7 +153,9 @@ function R.estimate(root,player,level,remaining)
     local rows=data.byLevel[tostring(level)] or {}
     for _,row in ipairs(rows) do addTotals(total,row) end
     local rt=player and R.runtime[player]
-    if rt and rt.root==root and rt.level==level and rt.xp>0 then addTotals(total,rt) end
+    -- Include the current run in the rate even before its next XP award. Long
+    -- zero-XP stretches are real effort and should make the estimate less optimistic.
+    if rt and rt.root==root and rt.level==level then addTotals(total,rt,false) end
 
     local current=rt and rt.root==root and rt.level==level and rt or nil
     if total.xp<=0 then
