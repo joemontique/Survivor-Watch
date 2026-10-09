@@ -1,6 +1,6 @@
 pcall(require,'XpSystem/XPSystem_SkillBook')
 
-SurvivorPhoneReading={books=nil}
+SurvivorPhoneReading={}
 local R=SurvivorPhoneReading
 
 local roman={'I','II','III','IV','V'}
@@ -21,30 +21,6 @@ local function skillBookEntry(perk)
     end
 end
 
-local function discoverBooks()
-    if R.books and next(R.books) then return R.books end
-    local books={}
-    local manager=getScriptManager and getScriptManager()
-    local items=manager and manager.getAllItems and manager:getAllItems()
-    if not items or not items.size or not items.get then return books end
-    for i=0,items:size()-1 do
-        local item=items:get(i)
-        local trained=safe(function() return item:getSkillTrained() end)
-        local start=safe(function() return item:getLvlSkillTrained() end)
-        if trained and start and SkillBook and SkillBook[trained] then
-            books[trained]=books[trained] or {}
-            books[trained][tonumber(start)]={
-                name=safe(function() return item:getDisplayName() end),
-                start=tonumber(start),
-                finish=tonumber(safe(function() return item:getMaxLevelTrained() end))
-            }
-        end
-    end
-    -- Do not permanently cache an empty discovery made before item scripts are ready.
-    if next(books) then R.books=books end
-    return books
-end
-
 local function multiplier(player,perk)
     if not player or not player.getXp then return 0 end
     local xp=player:getXp()
@@ -62,7 +38,6 @@ end
 function R.recommendations(player,tracker,skills)
     local rows={}
     if not player or not tracker or not skills then return rows end
-    local books=discoverBooks()
     for _,skill in ipairs(skills) do
         local today=tonumber((tracker.totals or {})[skill.id]) or 0
         if today>0 then
@@ -75,11 +50,10 @@ function R.recommendations(player,tracker,skills)
                     local current=multiplier(player,skill.perk)
                     if full and full>1 and current<full-0.01 then
                         local start=(volume-1)*2+1
-                        local found=books[bookSkill] and books[bookSkill][start]
-                        local fallback=skill.name..' '..(roman[volume] or tostring(volume))
+                        local bookLabel=skill.name..' Vol. '..(roman[volume] or tostring(volume))
                         table.insert(rows,{
                             skill=skill.name,skillId=skill.id,today=today,level=level,volume=volume,
-                            book=found and found.name or fallback,
+                            book=bookLabel,
                             levelStart=start,levelEnd=volume*2,current=current,full=full,
                             status=current<=0.01 and 'Not read' or 'Partially read'
                         })
@@ -93,10 +67,6 @@ function R.recommendations(player,tracker,skills)
         return a.skill<b.skill
     end)
     return rows
-end
-
-function R.resetCache()
-    R.books=nil
 end
 
 return R
