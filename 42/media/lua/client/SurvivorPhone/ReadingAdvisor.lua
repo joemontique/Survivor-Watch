@@ -22,25 +22,27 @@ local function skillBookEntry(perk)
 end
 
 local function discoverBooks()
-    if R.books then return R.books end
-    R.books={}
+    if R.books and next(R.books) then return R.books end
+    local books={}
     local manager=getScriptManager and getScriptManager()
     local items=manager and manager.getAllItems and manager:getAllItems()
-    if not items or not items.size or not items.get then return R.books end
+    if not items or not items.size or not items.get then return books end
     for i=0,items:size()-1 do
         local item=items:get(i)
         local trained=safe(function() return item:getSkillTrained() end)
         local start=safe(function() return item:getLvlSkillTrained() end)
         if trained and start and SkillBook and SkillBook[trained] then
-            R.books[trained]=R.books[trained] or {}
-            R.books[trained][tonumber(start)]={
+            books[trained]=books[trained] or {}
+            books[trained][tonumber(start)]={
                 name=safe(function() return item:getDisplayName() end),
                 start=tonumber(start),
                 finish=tonumber(safe(function() return item:getMaxLevelTrained() end))
             }
         end
     end
-    return R.books
+    -- Do not permanently cache an empty discovery made before item scripts are ready.
+    if next(books) then R.books=books end
+    return books
 end
 
 local function multiplier(player,perk)
