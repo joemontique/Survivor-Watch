@@ -126,24 +126,25 @@ end
 local function fitnessLines(panel,state)
     local estimate=Run.estimate(panel.root,panel.player,state.level,state.remaining)
     local today=estimate.today or {}
-    local runToday=(today.seconds or 0)>0 or (today.tiles or 0)>0
+    local runToday=(today.seconds or 0)>0 or (today.tiles or 0)>0 or (today.xp or 0)>0
     if not estimate.learned then
         if not runToday then return nil end
         return {
-            'Running tracker active  /  '..C.shortDuration(today.seconds or 0)..' running  /  '..number(today.tiles or 0)..' tiles',
+            'Run/Sprint today  /  '..C.shortDuration(today.seconds or 0)..'  /  '..number(math.floor((today.tiles or 0)+0.5))..' tiles  /  +'..number(today.xp or 0)..' Fitness XP',
             'Waiting for a Fitness XP gain before predicting time and distance.'
         },false
     end
     local confidence=estimate.confidence or 'Provisional'
-    local rate='Running rate ('..confidence..')'
+    local rate='Run/Sprint rate ('..confidence..')'
     if estimate.xpPerMinute then rate=rate..'  /  +'..number(estimate.xpPerMinute)..' XP/real min' end
     if estimate.xpPer100Tiles then rate=rate..'  /  +'..number(estimate.xpPer100Tiles)..' XP/100 tiles' end
     local remaining='Estimated to Level '..(state.level+1)..': '
-    if estimate.secondsLeft then remaining=remaining..C.shortDuration(estimate.secondsLeft)..' running' else remaining=remaining..'-- running time' end
+    if estimate.secondsLeft then remaining=remaining..C.shortDuration(estimate.secondsLeft)..' run/sprint' else remaining=remaining..'-- run/sprint time' end
     if estimate.tilesLeft then remaining=remaining..'  /  '..number(math.floor(estimate.tilesLeft+0.5))..' tiles' end
-    local basis='Based on '..estimate.sessions..' run session'..(estimate.sessions==1 and '' or 's')
-    if estimate.events and estimate.events>estimate.sessions then basis=basis..' / '..estimate.events..' Fitness XP gains' end
-    return {rate,remaining,basis},true
+    local evidence='Evidence: '..tostring(estimate.events or 0)..' Fitness XP gain'..((estimate.events or 0)==1 and '' or 's')
+        ..'  /  '..tostring(estimate.sessions or 0)..' completed run session'..((estimate.sessions or 0)==1 and '' or 's')
+    local todayLine='Today: '..C.shortDuration(today.seconds or 0)..' run/sprint  /  '..number(math.floor((today.tiles or 0)+0.5))..' tiles  /  +'..number(today.xp or 0)..' Fitness XP'
+    return {rate,remaining,evidence,todayLine},true
 end
 
 local function drawSkillCard(panel,y,row)
@@ -215,7 +216,7 @@ function M.draw(panel,y,now)
     y=drawSuggestedReading(panel,y,tracker)
 
     y=panel:section('SKILL LEVELS',y)
-    y=y+D.wrap(panel,'Skills with XP gained today are listed first, then sorted by XP remaining to the next level. Zero-XP skills follow. Repeatable actions use recent matching samples; Fitness learns from continuous running time, distance and observed Fitness XP.',x,y,w,c.muted)+12
+    y=y+D.wrap(panel,'Skills with XP gained today are listed first, then sorted by XP remaining to the next level. Zero-XP skills follow. Repeatable actions use recent matching samples; Fitness learns from continuous run/sprint time, distance and observed Fitness XP.',x,y,w,c.muted)+12
 
     local rows=state.rows
     if #rows==0 then
