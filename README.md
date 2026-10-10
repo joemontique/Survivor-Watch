@@ -100,6 +100,12 @@ For the development checkout on Windows, the included sync script can back up th
 
 See [tools/README.md](tools/README.md) for the sync workflow and destination setup.
 
+## Steam Workshop
+
+Survivor Watch 1.6.6 is prepared for Steam Workshop packaging without changing the tested gameplay payload. The recommended first upload is **Unlisted** so the Workshop-downloaded copy can be smoke-tested before going Public.
+
+See [STEAM_WORKSHOP.md](STEAM_WORKSHOP.md) for the package layout, one-command build step, upload flow, clean-install smoke test, and future update process.
+
 ## Current scope
 
 Survivor Watch is single-player focused. Terrain-map work and battery drain/charging remain outside the current release scope.
