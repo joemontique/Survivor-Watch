@@ -257,22 +257,34 @@ function P.visible(data,history)
     return rows
 end
 function P.radar(data,minute)
-    local active,recent,future;local ordered=P.sorted(data)
-    for _,task in ipairs(ordered) do
-        local s=P.state(data,task)
-        if s.status=='active' then active=task end
-        if s.status~='skipped' and task.start then
-            if task.start<=minute then recent=task elseif s.status~='done' and not future then future=task end
+    local active,due,secondDue,future,anytime
+    for _,task in ipairs(P.sorted(data)) do
+        local state=P.state(data,task)
+        local status=P.status(data,task,minute)
+        if status=='In progress' and not active then
+            active=task
+        elseif status~='Done' and status~='Skipped today' and status~='Window passed' then
+            local target=state.snoozeUntil or task.start
+            if target then
+                if target<=minute then
+                    if not due then due=task elseif not secondDue then secondDue=task end
+                elseif not future then
+                    future=task
+                end
+            elseif not anytime then
+                anytime=task
+            end
         end
     end
-    local current=active or recent or P.latestDone(data) or future or P.nextTask(data,minute)
-    local passed=false
-    for _,task in ipairs(ordered) do
-        local s=P.state(data,task)
-        if passed and s.status~='done' and s.status~='skipped' then return current,task end
-        if current and task.id==current.id then passed=true end
+    local current=active or due
+    local nextTask
+    if current then
+        if active and due and due.id~=current.id then nextTask=due
+        else nextTask=secondDue or future or anytime end
+    else
+        nextTask=future or anytime
     end
-    return current,nil
+    return current,nextTask
 end
 function P.recognize(data,rule,minute,evidence)
     local best,active,count,activeCount=nil,nil,0,0

@@ -4,7 +4,7 @@ local N=SurvivorPhoneNeeds
 local specs={
     {key='hunger',stat='HUNGER',moodle='HUNGRY',label='Hunger',threshold=0.15,zero=1,warning='Peckish'},
     {key='thirst',stat='THIRST',moodle='THIRST',label='Thirst',threshold=0.12,zero=1,warning='Thirsty'},
-    {key='fatigue',stat='FATIGUE',moodle='TIRED',label='Rested',threshold=0.6,zero=0.6,warning='Drowsy'},
+    {key='fatigue',stat='FATIGUE',moodle='TIRED',label='Rest',threshold=0.6,zero=1,warning='Drowsy'},
     {key='endurance',stat='ENDURANCE',moodle='ENDURANCE',label='Stamina',threshold=0.75,zero=0,warning='Exertion'}
 }
 N.specs=specs
@@ -28,9 +28,14 @@ function N.fullness(player,hunger,level)
     local body=player.getBodyDamage and player:getBodyDamage()
     local timer=body and body:getHealthFromFoodTimer() or 0
     local standard=body and body:getStandardHealthFromFoodTime() or 1600
-    -- Fullness and hunger are separate native values. This is a normalized reserve,
-    -- not an invented native percentage. The upper fifth represents the food bonus.
-    local fill=0.8*(1-clamp(hunger))
+    -- CharacterStat.HUNGER has appeared on both normalized (0..1) and percentage
+    -- (0..100) scales. Normalize it before drawing the reserve gauge so reaching
+    -- Peckish warns the player without incorrectly looking empty.
+    local raw=tonumber(hunger) or 0
+    local normalized=raw>1 and raw/100 or raw
+    -- The base hunger reserve uses 80% of the gauge; the top 20% is the temporary
+    -- food/fullness bonus. Zero is reserved for the extreme end of starvation.
+    local fill=0.8*(1-clamp(normalized))
     if level==0 then
         fill=fill+0.2*clamp(timer/math.max(1,standard*2))
         if fed>=3 then return 1,fed,timer end
@@ -51,9 +56,9 @@ function N.threshold(spec)
     return spec.threshold
 end
 function N.measure(spec,value,level)
-    local zero=spec.key=='fatigue' and N.threshold(spec) or spec.zero
-    local fill=spec.key=='endurance' and clamp(value) or clamp(1-value/zero)
-    if spec.key=='fatigue' and level>=1 then fill=0 end
+    local raw=tonumber(value) or 0
+    local normalized=raw>1 and raw/100 or raw
+    local fill=spec.key=='endurance' and clamp(normalized) or clamp(1-normalized/(spec.zero or 1))
     return fill
 end
 function N.rate(samples)

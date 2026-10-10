@@ -1,5 +1,6 @@
 require 'SurvivorPhone/FishingTracker'
 require 'SurvivorPhone/ActionRecognition'
+require 'SurvivorPhone/XPActionResults'
 SurvivorPhoneHooks={status={},errors={}}
 local H=SurvivorPhoneHooks
 local F=SurvivorPhoneFishing
@@ -62,6 +63,8 @@ function H.install()
         self._survivorCast=F.active[self.character]
         if self._survivorCast then self._survivorCast.action=self end
         self._survivorXP=self.character:getXp():getXP(Perks.Fishing)
+        self._survivorFishingLevel=self.character:getPerkLevel(Perks.Fishing)
+        self._survivorFishingInstance=tostring(self)
     end,function(self)
         if self._survivorXP then self._survivorXPGained=self.character:getXp():getXP(Perks.Fishing)>self._survivorXP end
     end)
@@ -71,8 +74,20 @@ function H.install()
         local container=self.item and self.item:getContainer()
         if not container or not container:isInCharacterInventory(self.character) then return end
         -- fishInInv is set by the native action when this exact catch enters inventory.
+        -- Record that catch as an exact repeatable Fishing sample so Progress can
+        -- learn an average and estimate how many similar catches remain to level.
         self._survivorRecorded=true
-        F.finish(self.character,self._survivorXPGained and 'success' or 'empty',SurvivorPhoneClock.realSeconds(),SurvivorPhoneClock.now())
+        local now=SurvivorPhoneClock.now()
+        if self._survivorXP~=nil and self._survivorFishingLevel~=nil then
+            local afterXP=self.character:getXp():getXP(Perks.Fishing)
+            local afterLevel=self.character:getPerkLevel(Perks.Fishing)
+            local root=SurvivorPhoneData.get(self.character)
+            SurvivorPhoneXP.observeActionResult(root,now.day,'Fishing',math.max(0,afterXP-self._survivorXP),'Fishing',{
+                minute=now.minute,world=now.worldMinute,level=self._survivorFishingLevel,currentLevel=afterLevel,
+                actionKey='Fishing:catch',actionLabel='Catch fish',actionInstance=self._survivorFishingInstance or tostring(self)
+            })
+        end
+        F.finish(self.character,'success',SurvivorPhoneClock.realSeconds(),now)
     end)
     local generators={{'ISGeneratorInfoAction','perform'},{'ISActivateGenerator','complete'},
         {'ISPlugGenerator','complete'},{'ISFixGenerator','complete'},{'ISAddFuel','complete'},{'ISTakeGenerator','complete'}}

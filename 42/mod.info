@@ -1,4 +1,4 @@
 name=Survivor Watch
 id=SurvivorPhone
-description=Version 1.6.5: Vitals-first watch face, cleaner scaled-down details drawer, Mute All Notifications control, and thirst kept visible without popup notifications. Single-player.
+description=Version 1.6.6: Progress overhaul with Suggested Reading, learned XP estimates, run/sprint Fitness tracking, improved Hunger/Rest vitals, Sleep Reset fixes, and safer vanilla alarm interaction. Single-player.
 versionMin=42.20

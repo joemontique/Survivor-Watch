@@ -12,8 +12,9 @@ local P=SurvivorPhonePlanner
 local C=SurvivorPhoneClock
 local c=D.c
 
-local needNames={thirst='Hydration',hunger='Fuel',fatigue='Recovery',endurance='Stamina'}
+local needNames={thirst='Hydration',hunger='Hunger',fatigue='Rest',endurance='Stamina'}
 local needColors={thirst=c.blue,hunger=c.mint,fatigue=c.purple,endurance=c.amber}
+local needPriority={fatigue=3,thirst=2,hunger=1}
 
 function W:new(player,item)
     local root=SurvivorPhoneData.get(player)
@@ -77,26 +78,23 @@ function W:chip(id,label,x,y,w,h,action,active)
     self:region(id,x,y,w,h,action)
 end
 
-local function muted(root)
-    local s=root.settings or {}
-    return s.notificationsMuted==true or s.dnd==true
-end
-
-local function toggleMute(root)
-    local value=not muted(root)
-    root.settings.notificationsMuted=value
-    root.settings.dnd=value
-end
-
 local function urgentNeed(root)
-    local best
+    local active,activeScore,soon
     for _,bar in ipairs(((root.needs or {}).bars or {})) do
         if bar.key~='endurance' then
-            if bar.level and bar.level>0 then return bar,(needNames[bar.key] or bar.label)..' / '..bar.status end
-            if bar.eta and (not best or bar.eta<best.eta) then best=bar end
+            local level=tonumber(bar.level) or 0
+            if level>0 then
+                local score=level*100+(needPriority[bar.key] or 0)
+                if not active or score>activeScore or score==activeScore and (bar.eta or math.huge)<(active.eta or math.huge) then
+                    active,activeScore=bar,score
+                end
+            elseif bar.eta and (not soon or bar.eta<soon.eta) then
+                soon=bar
+            end
         end
     end
-    if best then return best,(needNames[best.key] or best.label)..' in '..C.irlEta(best.eta) end
+    if active then return active,(needNames[active.key] or active.label)..' / '..active.status end
+    if soon then return soon,(needNames[soon.key] or soon.label)..' in '..C.irlEta(soon.eta) end
 end
 
 function W:bodyBattery()
@@ -116,7 +114,7 @@ function W:drawVitals(x,y,w)
     local rowH=14
     for _,bar in ipairs(bars) do
         local name=needNames[bar.key] or bar.label
-        local color=bar.level and bar.level>=3 and c.red or bar.level and bar.level>=1 and c.amber or needColors[bar.key] or c.mint
+        local color=(bar.key=='hunger' or bar.key=='fatigue') and bar.level and bar.level>=1 and c.red or bar.level and bar.level>=3 and c.red or bar.level and bar.level>=1 and c.amber or needColors[bar.key] or c.mint
         local pct=math.floor((bar.percent or math.min(99.9,(bar.fill or 0)*100))+0.5)..'%'
         D.text(self,name,x,y,c.text,nil,74)
         D.round(self,x+76,y+4,w-116,6,c.raised,1,3)
@@ -134,9 +132,7 @@ function W:prerender()
     D.round(self,7,7,self.width-14,self.height-14,c.card,0.96,14)
     local x,y,w=self.pad,10,self.width-self.pad*2
     local _,planner,now=SurvivorPhoneData.get(self.player)
-    D.text(self,'SURVIVOR WATCH',x,y,c.muted,nil,w-70)
-    local mute=muted(self.root)
-    self:chip('mute',mute and 'Muted' or 'Alerts',self.width-78,y-2,48,20,function() toggleMute(self.root) end,mute)
+    D.text(self,'SURVIVOR WATCH',x,y,c.muted,nil,w-42)
     D.text(self,'x',self.width-24,y,c.muted)
     self:region('close',self.width-31,4,28,28,function() self:close(true) end)
     y=y+self.lh+1
@@ -151,7 +147,7 @@ function W:prerender()
     y=y+D.wrap(self,what and what.title or 'Free roam',x,y,w,c.text,UIFont.Medium)+1
     if what and what.subtitle and y<self.height-68 then y=y+D.wrap(self,what.subtitle,x,y,w,c.muted)+2 end
     local current,nextTask=P.radar(planner,now.minute)
-    local nextText=nextTask and ('Next '..P.time(nextTask.start)..' / '..nextTask.name) or current and (P.time(current.start)..' / '..current.name) or 'No later task'
+    local nextText=nextTask and ('Next '..P.time(nextTask.start)..' / '..nextTask.name) or current and ((current.start and P.time(current.start)..' / ' or '')..current.name) or 'No later task'
     if y<self.height-58 then y=y+D.wrap(self,nextText,x,y,w,c.muted)+2 end
     self:button('open','Details',x,self.height-38,w,28,function()
         if SurvivorPhone then SurvivorPhone.open(self.item,self.player) end
@@ -161,8 +157,13 @@ end
 function W:onMouseDown(x,y)
     self:bringToTop()
     local r=self:hit(x,y)
-    if r then self.pressedId=r.id;return true end
-    self.dragging=true
+    if r then
+        self.pressedId=r.id
+        return true
+    end
+    self.watchPress=true
+    self.pressScreenX=getMouseX()
+    self.pressScreenY=getMouseY()
     self.dragX=getMouseX()-self.x
     self.dragY=getMouseY()-self.y
     self:setCapture(true)
@@ -173,6 +174,10 @@ function W:onMouseMove(dx,dy)
     local x,y=self:getMouseX(),self:getMouseY()
     local r=self:hit(x,y)
     self.hoverId=r and r.id or nil
+    if self.watchPress and not self.dragging then
+        local mx,my=getMouseX(),getMouseY()
+        if math.abs(mx-(self.pressScreenX or mx))>4 or math.abs(my-(self.pressScreenY or my))>4 then self.dragging=true end
+    end
     if self.dragging then
         self:setX(math.max(0,math.min(getCore():getScreenWidth()-self.width,getMouseX()-self.dragX)))
         self:setY(math.max(0,math.min(getCore():getScreenHeight()-self.height,getMouseY()-self.dragY)))
@@ -181,21 +186,35 @@ function W:onMouseMove(dx,dy)
 end
 
 function W:onMouseMoveOutside(dx,dy)
-    if self.dragging then return self:onMouseMove(dx,dy) end
+    if self.watchPress or self.dragging then return self:onMouseMove(dx,dy) end
     self.hoverId=nil
 end
 
 function W:onMouseUp(x,y)
     local r=self:hit(x,y)
-    if not self.dragging and r and r.id==self.pressedId and r.action then r.action() end
+    local wasWatchPress=self.watchPress==true
+    local wasDragging=self.dragging==true
+    if not wasWatchPress and not wasDragging and r and r.id==self.pressedId and r.action then
+        r.action()
+    elseif wasWatchPress and not wasDragging and SurvivorPhone then
+        SurvivorPhone.open(self.item,self.player)
+    end
     self.dragging=false
+    self.watchPress=false
     self.pressedId=nil
     self:setCapture(false)
     self.root.settings.watchX,self.root.settings.watchY=self.x,self.y
     return true
 end
 
-function W:onMouseUpOutside(x,y) return self:onMouseUp(x,y) end
+function W:onMouseUpOutside(x,y)
+    self.dragging=false
+    self.watchPress=false
+    self.pressedId=nil
+    self:setCapture(false)
+    self.root.settings.watchX,self.root.settings.watchY=self.x,self.y
+    return true
+end
 
 function W:update()
     ISPanel.update(self)

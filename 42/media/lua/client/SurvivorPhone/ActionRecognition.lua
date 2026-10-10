@@ -3,7 +3,7 @@ require 'SurvivorPhone/XPTracker'
 require 'SurvivorPhone/Learning'
 require 'SurvivorPhone/Activity'
 require 'SurvivorPhone/SleepCoach'
-SurvivorPhoneRecognition={snapshots={},sleeping={},perks=nil}
+SurvivorPhoneRecognition={snapshots={},levels={},sleeping={},perks=nil}
 local A=SurvivorPhoneRecognition
 function A.skillList()
     if A.perks then return A.perks end
@@ -11,7 +11,7 @@ function A.skillList()
     for i=0,PerkFactory.PerkList:size()-1 do
         local perk=PerkFactory.PerkList:get(i)
         if perk:getParent()~=Perks.None then
-            table.insert(A.perks,{id=perk:getId(),name=perk:getName(),perk=perk:getType()})
+            table.insert(A.perks,{id=perk:getId(),name=perk:getName(),perk=perk:getType(),definition=perk})
             if perk:getId()~='Fishing' and perk:getId()~='Fitness' and perk:getId()~='Strength' and perk:getId()~='AnimalCare' and perk:getId()~='Husbandry' and perk:getId()~='Mechanics' and perk:getId()~='Carving' then
                 local rule='Skill:'..perk:getId();local exists=false
                 for _,value in ipairs(SurvivorPhonePlanner.recognitions) do if value==rule then exists=true end end
@@ -46,16 +46,29 @@ function A.scan(player)
     if not player or isClient() or isServer() or player:isDead() then return end
     local root,_,now=SurvivorPhoneData.get(player)
     local tracker=SurvivorPhoneXP.ensure(root,now.day)
+    SurvivorPhoneXP.observeWeight(root,now.day,now.worldMinute,player)
     local old=A.snapshots[player] or {};A.snapshots[player]=old
+    local levels=A.levels[player] or {};A.levels[player]=levels
     local rules={AnimalCare='Animal care XP',Husbandry='Animal care XP',Mechanics='Mechanics XP',Carving='Carving XP'}
     for _,skill in ipairs(A.skillList()) do
         tracker.names[skill.id]=skill.name
         local value=player:getXp():getXP(skill.perk)
+        local level=player:getPerkLevel(skill.perk)
+        local previousLevel=levels[skill.id]
+        if previousLevel==nil then previousLevel=level end
         if old[skill.id] and value>old[skill.id] then
-            SurvivorPhoneXP.add(root,now.day,skill.id,value-old[skill.id],skill.name)
+            local amount=value-old[skill.id]
+            local action=SurvivorPhoneActivity.xpContext(player,skill.id,now)
+            local sameLevel=previousLevel==level
+            SurvivorPhoneXP.add(root,now.day,skill.id,amount,skill.name,{
+                minute=now.minute,world=now.worldMinute,level=previousLevel,currentLevel=level,
+                actionKey=sameLevel and action and action.key or nil,
+                actionLabel=sameLevel and action and action.label or nil,
+                actionInstance=sameLevel and action and action.instance or nil
+            })
             if skill.id~='Fishing' and skill.id~='Fitness' and skill.id~='Strength' then
                 local rule=rules[skill.id] or 'Skill:'..skill.id
-                SurvivorPhoneLearning.observeXP(player,rule,skill.name,value-old[skill.id],now)
+                SurvivorPhoneLearning.observeXP(player,rule,skill.name,amount,now)
                 if not rules[skill.id] then A.result(player,rule,skill.name..' XP gained') end
             end
             if rules[skill.id] then
@@ -64,6 +77,7 @@ function A.scan(player)
             end
         end
         old[skill.id]=value
+        levels[skill.id]=level
     end
     local asleep=player:isAsleep()
     if A.sleeping[player]~=true and asleep then

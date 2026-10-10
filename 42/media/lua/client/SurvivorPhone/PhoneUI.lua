@@ -155,7 +155,9 @@ function U:drawTrackerSummary(y,now)
     local gap=8
     local cols=self.compact and 2 or 3
     local tileW=(w-36-gap*(cols-1))/cols
-    local values={{'Routine',done..' / '..total,c.mint},{'XP','+'..string.format('%.1f',xpTotal),c.purple},{'Reset',(self.root.sleepCoach and self.root.sleepCoach.alarm and self.root.sleepCoach.alarm.armed) and P.time(self.root.sleepCoach.alarm.targetMinute) or 'Ready',c.blue}}
+    local sleepAlarm=self.root.sleepCoach and self.root.sleepCoach.alarm or {}
+    local resetText=sleepAlarm.armed and (sleepAlarm.targetLabel or P.time(sleepAlarm.targetMinute)) or 'Ready'
+    local values={{'Routine',done..' / '..total,c.mint},{'XP','+'..string.format('%.1f',xpTotal),c.purple},{'Reset',resetText,c.blue}}
     for i,row in ipairs(values) do
         local tx=x+18+((i-1)%cols)*(tileW+gap)
         local ty=tileY+math.floor((i-1)/cols)*(self.lh*2+34)
@@ -191,7 +193,7 @@ function U:drawHome(y,now)
 end
 function U:drawVitals(y,now)
     local x,w=self.pad,self.bodyW
-    y=self:heading('Vitals','Hydration, fuel, recovery and stamina stay separate from the rest of the tracker.',y)
+    y=self:heading('Vitals','Hydration, hunger, rest and stamina stay separate from the rest of the tracker.',y)
     local bars=(self.root.needs or {}).bars or {}
     if #bars==0 then return y+D.wrap(self,'Waiting for the survivor\'s current condition...',x,y,w,c.muted)+12 end
     local columns=self.compact and 1 or 2
@@ -200,13 +202,13 @@ function U:drawVitals(y,now)
     for i,bar in ipairs(bars) do
         if i>1 and (i-1)%columns==0 then gridY=gridY+rowHeight+16;rowHeight=0 end
         local bx=x+(i-1)%columns*(cellW+20);local by=gridY
-        local color=bar.level>=3 and c.red or bar.level>=1 and c.amber or c.mint
+        local color=(bar.key=='hunger' or bar.key=='fatigue') and bar.level>=1 and c.red or bar.level>=3 and c.red or bar.level>=1 and c.amber or c.mint
         local track=c.raised
         if bar.key=='fatigue' and bar.level>=2 then
             local period=bar.level>=4 and 0.55 or bar.level>=3 and 1.25 or 3
             if C.realSeconds()%period<period*0.45 then track=c.red end
         end
-        local fitnessLabel=bar.key=='thirst' and 'Hydration' or bar.key=='hunger' and 'Fuel' or bar.key=='fatigue' and 'Recovery' or bar.key=='endurance' and 'Stamina' or bar.label
+        local fitnessLabel=bar.key=='thirst' and 'Hydration' or bar.key=='hunger' and 'Hunger' or bar.key=='fatigue' and 'Rest' or bar.key=='endurance' and 'Stamina' or bar.label
         local forecast=bar.forecastStatus or 'Learning your pace'
         if bar.key~='endurance' and bar.eta then forecast=bar.warning..' in '..C.irlEta(bar.eta) end
         local forecastHeight=bar.key~='endurance' and D.wrap(nil,forecast,bx,by,cellW-24) or 0
@@ -227,7 +229,7 @@ function U:drawVitals(y,now)
     end
     y=gridY+rowHeight
     y=y+18
-    y=y+D.wrap(self,'These are normalized tracker reserves, not raw Zomboid values. Hunger still uses fullness correctly, Recovery reaches zero at Drowsy, and Stamina follows endurance.',x,y,w,c.muted)+12
+    y=y+D.wrap(self,'These are normalized tracker reserves, not raw Zomboid values. Hunger and Rest keep reserve through their warning moodles and only approach zero at their extreme states; Stamina follows endurance.',x,y,w,c.muted)+12
     return y
 end
 function U:drawSkills(y,now)
@@ -305,7 +307,7 @@ function U:drawSettings(y,now)
         s.sleepResetEnabled=not s.sleepResetEnabled
         if not s.sleepResetEnabled then SurvivorPhoneSleepCoach.cancel(self.root) end
     end,s.sleepResetEnabled and 'primary' or nil);y=y+h+10
-    y=y+D.wrap(self,'Sleep Reset learns your usual bedtime and wake time. When armed, it sets a shorter sleep alarm to protect tomorrow instead of letting a late night roll into a late wake.',x,y,w,c.muted)+16
+    y=y+D.wrap(self,'Sleep Reset learns your routine, then uses a short corrective 3-4 game-hour sleep when fatigue would otherwise push your schedule off course.',x,y,w,c.muted)+16
     y=self:slider('lead','Need popup lead time',s.leadMinutes,10,120,x,y,w,function(v) s.leadMinutes=math.floor(v/5+0.5)*5 end,s.leadMinutes..' game min')
     self:button('history','Notification history',x,y,w,h,function() self:showApp('history') end);y=y+h+10
     self:button('travel','Places & travel history',x,y,w,h,function() self:showApp('travel') end);y=y+h+10
@@ -336,7 +338,7 @@ function U:drawSettings(y,now)
     if SurvivorPhoneDebug.isEnabled() then
         self:button('debug','Debug diagnostics',x,y,w,h,function() self:showApp('debug') end);y=y+h+12
     end
-    y=y+D.wrap(self,'Survivor Watch 1.6.5 / Build 42.20\nVitals-first watch face. Mute all notifications silences popups without stopping tracking. Thirst is manual-only for popups and remains visible in Vitals and What Now. The details drawer is scaled down for readability. Battery cosmetic. Terrain map integration is paused.',x,y,w,c.muted)+10
+    y=y+D.wrap(self,'Survivor Watch 1.6.6 / Build 42.20\nVitals-first watch face. Mute all notifications silences popups without stopping tracking. Thirst is manual-only for popups and remains visible in Vitals and What Now. The details drawer is scaled down for readability. Battery cosmetic. Terrain map integration is paused.',x,y,w,c.muted)+10
     return y
 end
 function U:drawStore(y)

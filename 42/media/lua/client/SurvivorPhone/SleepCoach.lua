@@ -7,8 +7,21 @@ local P=SurvivorPhonePlanner
 local C=SurvivorPhoneClock
 
 local function clamp(v,a,b) return math.max(a,math.min(b,v or a)) end
-local function dayMinute(worldMinute) return math.floor(worldMinute%1440+0.5)%1440 end
+local function dayMinute(value) return math.floor(value%1440+0.5)%1440 end
 local function round5(value) return math.floor(value/5+0.5)*5 end
+local function time12(minute)
+    minute=dayMinute(minute or 0)
+    local hour=math.floor(minute/60)
+    local suffix=hour>=12 and 'PM' or 'AM'
+    local display=hour%12
+    if display==0 then display=12 end
+    return string.format('%d:%02d %s',display,minute%60,suffix)
+end
+local function targetLabel(targetMinute,dayOffset)
+    local label=time12(targetMinute)
+    if (dayOffset or 0)>0 then return label..' tomorrow' end
+    return label..' today'
+end
 local function median(values)
     table.sort(values)
     local n=#values
@@ -75,13 +88,55 @@ local function nameOf(item)
     if item.getFullType then local ok,value=pcall(function() return item:getFullType() end);if ok and value then return value end end
     return 'alarm item'
 end
+local function idOf(item)
+    if item and item.getID then local ok,value=pcall(function() return item:getID() end);if ok and value~=nil then return tostring(value) end end
+end
+local function typeOf(item)
+    if item and item.getFullType then local ok,value=pcall(function() return item:getFullType() end);if ok then return value end end
+end
+local function alarmState(item)
+    local state={}
+    if item and item.isAlarmSet then local ok,value=pcall(function() return item:isAlarmSet() end);if ok then state.alarmSet=value==true end end
+    if item and item.getHour then local ok,value=pcall(function() return item:getHour() end);if ok then state.hour=tonumber(value) end end
+    if item and item.getMinute then local ok,value=pcall(function() return item:getMinute() end);if ok then state.minute=tonumber(value) end end
+    return state
+end
+local function findAlarmItem(player,alarm)
+    if not player or not alarm then return nil end
+    local fallback
+    for item in inventoryItems(player) do
+        if canUseAlarm(item) then
+            local id=idOf(item)
+            if alarm.itemId and id==tostring(alarm.itemId) then return item end
+            if not alarm.itemId and not fallback and alarm.itemType and typeOf(item)==alarm.itemType and nameOf(item)==alarm.item then fallback=item end
+        end
+    end
+    return fallback
+end
+local function forceWakeTime(player)
+    if player and player.getForceWakeUpTime then
+        local ok,value=pcall(function() return player:getForceWakeUpTime() end)
+        if ok then return tonumber(value) end
+    end
+end
+local function playerForRoot(root)
+    if not root or not getNumActivePlayers or not getSpecificPlayer then return nil end
+    local count=getNumActivePlayers()
+    for i=0,count-1 do
+        local player=getSpecificPlayer(i)
+        if player and player.getModData then
+            local ok,mod=pcall(function() return player:getModData() end)
+            if ok and mod and mod.SurvivorPhone==root then return player end
+        end
+    end
+end
 
 function S.ensure(root)
     root.sleepCoach=root.sleepCoach or {version=1,history={},alarm={}}
     local sc=root.sleepCoach
     sc.history=sc.history or {}
     sc.alarm=sc.alarm or {}
-    sc.version=2
+    sc.version=3
     return sc
 end
 
@@ -112,16 +167,21 @@ function S.plan(root,now,player)
     local fatigue,level=fatigueState(player)
     local bedtime,wake,learned=S.targets(root)
     local natural=S.naturalSleepHours(fatigue,player)
-    local minHours=s.sleepResetMinHours or 3
-    local maxHours=s.sleepResetMaxHours or 6.5
-    local base=math.floor(now.worldMinute/1440)*1440+wake
-    while base<now.worldMinute+minHours*60 do base=base+1440 end
-    local untilWake=(base-now.worldMinute)/60
-    local duration=clamp(untilWake,minHours,maxHours)
-    if untilWake>maxHours then duration=clamp(math.min(natural-1,maxHours),minHours,maxHours) end
+    -- Sleep Reset is a corrective nap, not a second full sleep. Use fatigue to
+    -- choose a short 3-4 hour window and keep the learned routine only for
+    -- deciding when a reset is useful.
+    local minHours=math.min(3,tonumber(s.sleepResetMinHours) or 3)
+    local maxHours=math.min(4,tonumber(s.sleepResetMaxHours) or 4)
+    if maxHours<minHours then maxHours=minHours end
+    local duration=clamp(natural*0.45,minHours,maxHours)
+    duration=round5(duration*60)/60
     local targetWorld=now.worldMinute+duration*60
-    local targetMinute=dayMinute(targetWorld)
-    local naturalWake=dayMinute(now.worldMinute+natural*60)
+    -- worldMinute is elapsed world age and is not aligned to the time-of-day.
+    -- Derive the alarm clock time from now.minute instead.
+    local targetClock=now.minute+duration*60
+    local targetMinute=dayMinute(targetClock)
+    local targetDayOffset=math.floor(targetClock/1440)
+    local naturalWake=dayMinute(now.minute+natural*60)
     local afterBed=lateBy(now.minute,bedtime)
     local naturalWakeLate=(naturalWake-wake+1440)%1440
     local wouldLoseMorning=naturalWakeLate>=120 and naturalWakeLate<=720
@@ -131,38 +191,67 @@ function S.plan(root,now,player)
     if afterBed>=60 then reason='You are '..math.floor(afterBed/60)..'h '..(afterBed%60)..'m past the protected bedtime.'
     elseif wouldLoseMorning then reason='A full sleep is likely to push wake-up late into the day.'
     else reason='Your current sleep timing looks close enough to routine.' end
+    local label=targetLabel(targetMinute,targetDayOffset)
     return {bedtime=bedtime,wake=wake,learned=learned,naturalHours=natural,duration=duration,targetWorld=targetWorld,
-        targetMinute=targetMinute,targetHour=targetMinute/60,fatigue=fatigue,level=level,suggested=suggested,reason=reason,
-        summary='Wake around '..P.time(targetMinute)..' after about '..C.irlEta(duration*60)..'.'}
+        targetMinute=targetMinute,targetHour=targetMinute/60,targetDayOffset=targetDayOffset,targetLabel=label,
+        fatigue=fatigue,level=level,suggested=suggested,reason=reason,
+        summary='Wake around '..label..' after '..C.irlEta(duration*60)..'.'}
 end
 
-function S.syncAlarmItem(player,targetMinute)
+function S.syncAlarmItem(player,targetMinute,alarm)
     local hour=math.floor(targetMinute/60)%24
     local minute=targetMinute%60
-    for item in inventoryItems(player) do
-        if canUseAlarm(item) then
-            local ok,err=pcall(function()
-                item:setHour(hour)
-                item:setMinute(minute)
-                item:setAlarmSet(true)
-                item:syncAlarmClock()
-            end)
-            return ok,{item=nameOf(item),error=not ok and tostring(err) or nil}
-        end
+    local item=findAlarmItem(player,alarm)
+    if alarm and alarm.itemId and not item then
+        return false,{previousAlarm=alarm.previousAlarm,error='The alarm item used by Sleep Reset is no longer carried.'}
     end
-    return false,{error='No carried digital watch or alarm clock found.'}
+    if not item then
+        for candidate in inventoryItems(player) do if canUseAlarm(candidate) then item=candidate;break end end
+    end
+    if not item then return false,{previousAlarm=alarm and alarm.previousAlarm or nil,error='No carried digital watch or alarm clock found.'} end
+    local previous=alarm and alarm.previousAlarm or alarmState(item)
+    local ok,err=pcall(function()
+        item:setHour(hour)
+        item:setMinute(minute)
+        item:setAlarmSet(true)
+        item:syncAlarmClock()
+    end)
+    return ok,{item=nameOf(item),itemId=idOf(item),itemType=typeOf(item),previousAlarm=previous,error=not ok and tostring(err) or nil}
 end
 
-function S.applyWake(player,plan)
-    local result={forceWake=false,itemSynced=false}
+function S.applyWake(player,plan,alarm)
+    local result={forceWake=false,itemSynced=false,previousForceWake=alarm and alarm.previousForceWake or forceWakeTime(player)}
     if player and player.setForceWakeUpTime then
         local ok=pcall(function() player:setForceWakeUpTime(tonumber(plan.targetHour or plan.targetMinute/60)) end)
         result.forceWake=ok
     end
-    local ok,item=S.syncAlarmItem(player,plan.targetMinute)
+    local ok,item=S.syncAlarmItem(player,plan.targetMinute,alarm)
     result.itemSynced=ok
-    result.item=item and item.item or nil
+    result.item=item and item.item or alarm and alarm.item or nil
+    result.itemId=item and item.itemId or alarm and alarm.itemId or nil
+    result.itemType=item and item.itemType or alarm and alarm.itemType or nil
+    result.previousAlarm=item and item.previousAlarm or alarm and alarm.previousAlarm or nil
     result.itemError=item and item.error or nil
+    result.lastSyncReal=C.realSeconds()
+    return result
+end
+
+function S.restoreNative(player,alarm)
+    if not player or not alarm then return {forceWake=false,item=false} end
+    local result={forceWake=false,item=false}
+    if alarm.previousForceWake~=nil and player.setForceWakeUpTime then
+        result.forceWake=pcall(function() player:setForceWakeUpTime(alarm.previousForceWake) end)
+    end
+    local item=findAlarmItem(player,alarm)
+    local previous=alarm.previousAlarm
+    if item and previous then
+        result.item=pcall(function()
+            if previous.hour~=nil then item:setHour(previous.hour) end
+            if previous.minute~=nil then item:setMinute(previous.minute) end
+            if previous.alarmSet~=nil then item:setAlarmSet(previous.alarmSet) end
+            item:syncAlarmClock()
+        end)
+    end
     return result
 end
 
@@ -170,25 +259,34 @@ function S.arm(player)
     local root,_,now=SurvivorPhoneData.get(player)
     local plan=S.plan(root,now,player)
     local sc=S.ensure(root)
-    local sync=S.applyWake(player,plan)
+    if sc.alarm and sc.alarm.armed then S.restoreNative(player,sc.alarm) end
+    local sync=S.applyWake(player,plan,nil)
     sc.alarm={armed=true,active=false,day=now.day,armedMinute=now.minute,armedWorld=now.worldMinute,
-        targetMinute=plan.targetMinute,targetWorld=plan.targetWorld,duration=plan.duration,bedtime=plan.bedtime,wake=plan.wake,
-        reason=plan.reason,forceWake=sync.forceWake,itemSynced=sync.itemSynced,item=sync.item,itemError=sync.itemError}
+        targetMinute=plan.targetMinute,targetWorld=plan.targetWorld,targetDayOffset=plan.targetDayOffset,targetLabel=plan.targetLabel,
+        duration=plan.duration,bedtime=plan.bedtime,wake=plan.wake,
+        reason=plan.reason,forceWake=sync.forceWake,itemSynced=sync.itemSynced,item=sync.item,itemId=sync.itemId,itemType=sync.itemType,
+        previousForceWake=sync.previousForceWake,previousAlarm=sync.previousAlarm,itemError=sync.itemError,lastSyncReal=sync.lastSyncReal}
     if SurvivorPhoneNotifications then
-        local msg='Sleep Reset armed for '..P.time(plan.targetMinute)..'. '..(sync.itemSynced and 'Watch/alarm synced.' or 'Tracker alarm will handle it.')
+        local msg='Sleep Reset armed for '..plan.targetLabel..'. '..(sync.itemSynced and 'Watch/alarm synced.' or 'Tracker alarm will handle it.')
         SurvivorPhoneNotifications.emit(player,'sleep','sleep-reset:'..now.day..':'..now.minute,msg,'home')
     end
     return sc.alarm
 end
 
-function S.cancel(root)
+function S.cancel(root,player,reason)
     local sc=S.ensure(root)
-    sc.alarm={cancelledDay=(SurvivorPhoneClock.now() or {}).day}
+    local old=sc.alarm or {}
+    player=player or playerForRoot(root)
+    local restored=S.restoreNative(player,old)
+    local now=SurvivorPhoneClock.now()
+    sc.alarm={armed=false,active=false,cancelledDay=now and now.day or nil,cancelledMinute=now and now.minute or nil,
+        cancelReason=reason or 'cancelled',restoredForceWake=restored.forceWake,restoredItem=restored.item}
+    return sc.alarm
 end
 
 function S.perform(player,action)
     if action=='arm' then return S.arm(player) end
-    if action=='cancel' then local root=SurvivorPhoneData.get(player);S.cancel(root);return true end
+    if action=='cancel' then local root=SurvivorPhoneData.get(player);S.cancel(root,player,'user');return true end
 end
 
 function S.onSleepStarted(player,now)
@@ -199,10 +297,13 @@ function S.onSleepStarted(player,now)
     local alarm=sc.alarm or {}
     if alarm.armed then
         local plan=S.plan(root,now,player)
-        local sync=S.applyWake(player,plan)
+        local sync=S.applyWake(player,plan,alarm)
         alarm.active=true;alarm.sleepStart=now.worldMinute;alarm.sleepDay=now.day
-        alarm.targetMinute=plan.targetMinute;alarm.targetWorld=plan.targetWorld;alarm.duration=plan.duration
-        alarm.forceWake=sync.forceWake;alarm.itemSynced=sync.itemSynced;alarm.item=sync.item;alarm.itemError=sync.itemError
+        alarm.targetMinute=plan.targetMinute;alarm.targetWorld=plan.targetWorld;alarm.targetDayOffset=plan.targetDayOffset;alarm.targetLabel=plan.targetLabel;alarm.duration=plan.duration
+        alarm.forceWake=sync.forceWake;alarm.itemSynced=sync.itemSynced;alarm.item=sync.item;alarm.itemId=sync.itemId;alarm.itemType=sync.itemType
+        alarm.previousForceWake=alarm.previousForceWake~=nil and alarm.previousForceWake or sync.previousForceWake
+        alarm.previousAlarm=alarm.previousAlarm or sync.previousAlarm
+        alarm.itemError=sync.itemError;alarm.lastSyncReal=sync.lastSyncReal
         sc.alarm=alarm
     end
     sc.current={day=now.day,startMinute=now.minute,startWorld=now.worldMinute,fatigue=fatigue,level=level,reset=alarm.armed==true,
@@ -223,7 +324,10 @@ function S.onWake(player,now)
     end
     sc.current=nil
     if sc.alarm and sc.alarm.active then
-        sc.alarm.armed=false;sc.alarm.active=false;sc.alarm.completedDay=now.day;sc.alarm.completedMinute=now.minute
+        local alarm=sc.alarm
+        local restored=S.restoreNative(player,alarm)
+        alarm.armed=false;alarm.active=false;alarm.completedDay=now.day;alarm.completedMinute=now.minute
+        alarm.restoredForceWake=restored.forceWake;alarm.restoredItem=restored.item
         if SurvivorPhoneNotifications then
             SurvivorPhoneNotifications.emit(player,'sleep','sleep-reset-wake:'..now.day,'Sleep Reset woke you around '..P.time(now.minute)..'. Routine learning will use this wake-up.', 'home')
         end
@@ -235,9 +339,18 @@ function S.poll(player)
     local sc=S.ensure(root)
     local alarm=sc.alarm or {}
     if alarm.armed and player:isAsleep() then
-        S.applyWake(player,{targetMinute=alarm.targetMinute,targetHour=(alarm.targetMinute or 0)/60})
+        local seconds=C.realSeconds()
+        local needsRetry=alarm.forceWake~=true or alarm.itemSynced~=true
+        local canRetry=not alarm.lastSyncReal or seconds<alarm.lastSyncReal or seconds-alarm.lastSyncReal>=5
+        if needsRetry and canRetry then
+            local sync=S.applyWake(player,{targetMinute=alarm.targetMinute,targetHour=(alarm.targetMinute or 0)/60},alarm)
+            alarm.forceWake=sync.forceWake;alarm.itemSynced=sync.itemSynced;alarm.item=sync.item;alarm.itemId=sync.itemId;alarm.itemType=sync.itemType
+            alarm.previousForceWake=alarm.previousForceWake~=nil and alarm.previousForceWake or sync.previousForceWake
+            alarm.previousAlarm=alarm.previousAlarm or sync.previousAlarm
+            alarm.itemError=sync.itemError;alarm.lastSyncReal=sync.lastSyncReal;sc.alarm=alarm
+        end
     elseif alarm.armed and now.worldMinute-(alarm.armedWorld or now.worldMinute)>720 then
-        alarm.armed=false;alarm.expiredDay=now.day;sc.alarm=alarm
+        S.cancel(root,player,'expired')
     end
 end
 
@@ -245,7 +358,8 @@ function S.card(root,now,player)
     local sc=S.ensure(root)
     local alarm=sc.alarm or {}
     if alarm.armed then
-        return {key='sleep-reset:armed',title='Sleep Reset armed',reason='Alarm target '..P.time(alarm.targetMinute)..'. It will wake you after about '..C.irlEta((alarm.duration or 0)*60)..' so tomorrow does not slide away.',app='home',sleepAction='cancel',urgent=true}
+        local label=alarm.targetLabel or targetLabel(alarm.targetMinute,alarm.targetDayOffset)
+        return {key='sleep-reset:armed',title='Sleep Reset armed',reason='Alarm target '..label..'. Reset length '..string.format('%.1f',alarm.duration or 0)..' game hours ('..C.irlEta((alarm.duration or 0)*60)..').',app='home',sleepAction='cancel',urgent=true}
     end
     local plan=S.plan(root,now,player)
     if plan.suggested then
