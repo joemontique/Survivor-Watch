@@ -4,7 +4,7 @@ local N=SurvivorPhoneNeeds
 local specs={
     {key='hunger',stat='HUNGER',moodle='HUNGRY',label='Hunger',threshold=0.15,zero=1,warning='Peckish'},
     {key='thirst',stat='THIRST',moodle='THIRST',label='Thirst',threshold=0.12,zero=1,warning='Thirsty'},
-    {key='fatigue',stat='FATIGUE',moodle='TIRED',label='Rested',threshold=0.6,zero=0.6,warning='Drowsy'},
+    {key='fatigue',stat='FATIGUE',moodle='TIRED',label='Rest',threshold=0.6,zero=1,warning='Drowsy'},
     {key='endurance',stat='ENDURANCE',moodle='ENDURANCE',label='Stamina',threshold=0.75,zero=0,warning='Exertion'}
 }
 N.specs=specs
@@ -56,9 +56,9 @@ function N.threshold(spec)
     return spec.threshold
 end
 function N.measure(spec,value,level)
-    local zero=spec.key=='fatigue' and N.threshold(spec) or spec.zero
-    local fill=spec.key=='endurance' and clamp(value) or clamp(1-value/zero)
-    if spec.key=='fatigue' and level>=1 then fill=0 end
+    local raw=tonumber(value) or 0
+    local normalized=raw>1 and raw/100 or raw
+    local fill=spec.key=='endurance' and clamp(normalized) or clamp(1-normalized/(spec.zero or 1))
     return fill
 end
 function N.rate(samples)
