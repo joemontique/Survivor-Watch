@@ -29,12 +29,13 @@ SurvivorWatchWorkshop/
       └─ SurvivorPhone/
          ├─ mod.info
          ├─ common/
+         │  └─ mod.info
          └─ 42/
             ├─ mod.info
             └─ media/
 ```
 
-The root copy of `mod.info` is intentionally included for Workshop/uploader recognition. The actual Build 42 payload remains in `42/`.
+The uploader-validating copy is `common/mod.info`. The root copy is retained for compatibility, while the tested Build 42 gameplay payload remains unchanged in `42/`.
 
 ## Build the package
 
@@ -48,7 +49,7 @@ By default this creates:
 
 `dist\SurvivorWatchWorkshop`
 
-The script validates the preview dimensions and file size, validates Survivor Watch metadata, copies the complete `42` payload, and SHA-256 verifies the packaged Build 42 files against the repository source.
+The script validates the preview dimensions and file size, validates Survivor Watch metadata, places a verified `common/mod.info` where the current Build 42 Workshop validator expects metadata, copies the complete `42` payload, and SHA-256 verifies the packaged Build 42 files against the repository source.
 
 To build directly into Project Zomboid's Workshop authoring folder:
 
