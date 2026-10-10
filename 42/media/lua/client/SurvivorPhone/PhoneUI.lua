@@ -193,7 +193,7 @@ function U:drawHome(y,now)
 end
 function U:drawVitals(y,now)
     local x,w=self.pad,self.bodyW
-    y=self:heading('Vitals','Hydration, fuel, recovery and stamina stay separate from the rest of the tracker.',y)
+    y=self:heading('Vitals','Hydration, hunger, rest and stamina stay separate from the rest of the tracker.',y)
     local bars=(self.root.needs or {}).bars or {}
     if #bars==0 then return y+D.wrap(self,'Waiting for the survivor\'s current condition...',x,y,w,c.muted)+12 end
     local columns=self.compact and 1 or 2
@@ -202,13 +202,13 @@ function U:drawVitals(y,now)
     for i,bar in ipairs(bars) do
         if i>1 and (i-1)%columns==0 then gridY=gridY+rowHeight+16;rowHeight=0 end
         local bx=x+(i-1)%columns*(cellW+20);local by=gridY
-        local color=bar.level>=3 and c.red or bar.level>=1 and c.amber or c.mint
+        local color=(bar.key=='hunger' or bar.key=='fatigue') and bar.level>=1 and c.red or bar.level>=3 and c.red or bar.level>=1 and c.amber or c.mint
         local track=c.raised
         if bar.key=='fatigue' and bar.level>=2 then
             local period=bar.level>=4 and 0.55 or bar.level>=3 and 1.25 or 3
             if C.realSeconds()%period<period*0.45 then track=c.red end
         end
-        local fitnessLabel=bar.key=='thirst' and 'Hydration' or bar.key=='hunger' and 'Fuel' or bar.key=='fatigue' and 'Recovery' or bar.key=='endurance' and 'Stamina' or bar.label
+        local fitnessLabel=bar.key=='thirst' and 'Hydration' or bar.key=='hunger' and 'Hunger' or bar.key=='fatigue' and 'Rest' or bar.key=='endurance' and 'Stamina' or bar.label
         local forecast=bar.forecastStatus or 'Learning your pace'
         if bar.key~='endurance' and bar.eta then forecast=bar.warning..' in '..C.irlEta(bar.eta) end
         local forecastHeight=bar.key~='endurance' and D.wrap(nil,forecast,bx,by,cellW-24) or 0
@@ -229,7 +229,7 @@ function U:drawVitals(y,now)
     end
     y=gridY+rowHeight
     y=y+18
-    y=y+D.wrap(self,'These are normalized tracker reserves, not raw Zomboid values. Hunger still uses fullness correctly, Recovery reaches zero at Drowsy, and Stamina follows endurance.',x,y,w,c.muted)+12
+    y=y+D.wrap(self,'These are normalized tracker reserves, not raw Zomboid values. Hunger and Rest keep reserve through their warning moodles and only approach zero at their extreme states; Stamina follows endurance.',x,y,w,c.muted)+12
     return y
 end
 function U:drawSkills(y,now)
@@ -338,7 +338,7 @@ function U:drawSettings(y,now)
     if SurvivorPhoneDebug.isEnabled() then
         self:button('debug','Debug diagnostics',x,y,w,h,function() self:showApp('debug') end);y=y+h+12
     end
-    y=y+D.wrap(self,'Survivor Watch 1.6.5 / Build 42.20\nVitals-first watch face. Mute all notifications silences popups without stopping tracking. Thirst is manual-only for popups and remains visible in Vitals and What Now. The details drawer is scaled down for readability. Battery cosmetic. Terrain map integration is paused.',x,y,w,c.muted)+10
+    y=y+D.wrap(self,'Survivor Watch 1.6.6 / Build 42.20\nVitals-first watch face. Mute all notifications silences popups without stopping tracking. Thirst is manual-only for popups and remains visible in Vitals and What Now. The details drawer is scaled down for readability. Battery cosmetic. Terrain map integration is paused.',x,y,w,c.muted)+10
     return y
 end
 function U:drawStore(y)
