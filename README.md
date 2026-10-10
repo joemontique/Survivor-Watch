@@ -35,8 +35,9 @@ The player-facing mod is a watch, but the internal mod ID remains `SurvivorPhone
   - Stamina
 - `Rest` replaces the older Recovery wording.
 - Hunger keeps meaningful reserve below the first hunger moodle instead of dropping directly to zero.
-- Hunger becomes urgent/red starting at Peckish.
-- Expanded Hunger can show the active hunger state together with its percentage.
+- Rest now behaves the same way: Drowsy is a red warning state but still leaves reserve; deeper tiredness continues draining the bar and 0% is reserved for maximum fatigue.
+- Hunger becomes urgent/red starting at Peckish, and Rest becomes urgent/red starting at Drowsy.
+- Expanded Hunger and Rest can show the active moodle state together with the remaining percentage.
 
 ### Sleep Reset
 
