@@ -1,43 +1,104 @@
-# Survivor Watch 1.6.5
+# Survivor Watch 1.6.6
 
-A Project Zomboid Build 42.20.4 single-player digital-watch tracker. The internal mod ID remains `SurvivorPhone` so existing character mod data keeps loading, but the player-facing flow is now a watch/tracker instead of a phone.
+Survivor Watch is a Project Zomboid Build 42 single-player digital-watch companion focused on planning, needs, XP progress and learned recommendations.
 
-## This update
+The player-facing mod is a watch, but the internal mod ID remains `SurvivorPhone` so existing character mod data continues to load.
 
-- Reworks the small watch face around Vitals first: Hydration, Fuel, Recovery and Stamina are the top readout after the in-game time.
-- Adds a fast `Mute all notifications` control on the watch face, the Details footer and Gear. It silences popups only; tracking, XP, planner recognition, What Now and history continue.
-- Keeps thirst visible in Vitals and What Now, but thirst no longer creates popup notifications at any moodle level.
-- Scales the detailed drawer slightly smaller and cleans wording so it feels more like a readable fitness tracker.
-- Keeps Dimmer / opacity, Dashboard size, Watch size and Watch opacity controls.
+## 1.6.6 highlights
 
-## Retained behavior
+### Progress and XP learning
 
-- Planner schedule times use Project Zomboid in-game time. Need forecasts display approximate IRL countdowns.
-- Hunger, Thirst, Recovery and Stamina remain normalized reserves with native state labels. Hunger only shows 100% at the full/stuffed states and drops when that state ends. Recovery reaches zero at Drowsy and pulses at stronger tiredness.
-- What Now recommends one action at a time using needs, current activity, schedule windows, travel/place evidence and learning history.
-- Planner rows remain compact checklist items with one task Actions menu. Older completed tasks hide after the most recent completion unless history is opened.
-- Auto-complete favors correctness: chicken care uses confirmed Animal Care XP or native petting action hooks, fishing requires a real caught item plus pickup XP, generator hooks use exact generator interactions, and duplicate task matches do not guess unless one matching task is already active.
-- Food and water stay manual. Map work is paused. Battery drain/charging is still a late future feature.
+- Progress now puts skills that gained XP today above skills with zero XP today.
+- Within those groups, skills are ordered by XP remaining to the next level.
+- Repeatable actions learn from recent matching XP samples and estimate how many similar actions remain before the next level.
+- Fishing catches feed the same learning system, showing `Learning 1/3`, `Learning 2/3`, then a rolling average and estimated catches remaining.
+- Running and sprinting have a dedicated Fitness model that learns from elapsed running time, distance traveled and observed Fitness XP.
+- Fitness shows a provisional estimate first, then moves to a learned rate as evidence accumulates.
+- Zero-XP running time is retained so long stretches before a Fitness XP award are not ignored.
+- Weight and weight trend remain visible in Progress.
+
+### Suggested Reading
+
+- Progress includes a Suggested Reading section.
+- A skill is suggested only after it earns XP during the current in-game day.
+- The watch checks whether the full skill-book multiplier for the survivor's current level range is active.
+- Recommendations distinguish between `Not read` and `Partially read`.
+- Recommendations disappear once the full current book multiplier is active.
+- Current-day XP resets on the next in-game day, so Suggested Reading follows the skills the survivor is actively training now.
+
+### Vitals
+
+- The compact and expanded watch use:
+  - Hunger
+  - Hydration
+  - Rest
+  - Stamina
+- `Rest` replaces the older Recovery wording.
+- Hunger keeps meaningful reserve below the first hunger moodle instead of dropping directly to zero.
+- Hunger becomes urgent/red starting at Peckish.
+- Expanded Hunger can show the active hunger state together with its percentage.
+
+### Sleep Reset
+
+- Sleep Reset now uses the actual in-game time-of-day instead of elapsed world time when choosing a target.
+- Corrective naps are kept short enough to reduce fatigue without intentionally pushing the survivor into the next normal sleep period.
+- Targets display AM/PM and explicitly indicate `today` or `tomorrow`.
+- The alarm target is always forward from the current in-game time.
+
+### Watch and vanilla alarm interaction
+
+- Clicking the vanilla time portion of the HUD can open Survivor Watch.
+- The watch hotspot is limited to the time area so the vanilla alarm area remains usable.
+- While a digital-watch alarm is ringing, Survivor Watch yields the HUD interaction so the vanilla alarm can be dismissed normally.
+
+### Notifications
+
+- Survivor Watch popup/toast notifications are disabled.
+- Planner, needs, sleep and XP-related events can still be recorded in history.
+- The underlying planner and learning systems continue to operate without popup interruption.
+
+## Tested in-game for 1.6.6
+
+The candidate build was tested in Project Zomboid Build 42 and passed the high-risk paths used for this release:
+
+- opening the compact and expanded Survivor Watch
+- expanded-window tabs and controls
+- Progress screen rendering and scrolling
+- Suggested Reading, including partial book progress
+- active-skill Progress sorting
+- running/sprinting Fitness tracking and learned estimates
+- fishing XP action estimates
+- Animal Care recognition
+- Mechanics recognition
+- generator interaction recognition
+- vanilla time versus alarm HUD interaction
+- Hunger and Rest display behavior
+- Sleep Reset target timing
+
+A render-time full item scan used by the first Suggested Reading implementation caused the Progress screen to freeze during testing. That approach was removed; Suggested Reading now derives the required skill-book volume without scanning every scripted item.
 
 ## Persistence and compatibility
 
-All persistent values remain under the character's `getModData().SurvivorPhone` table. Existing `dnd` settings are preserved and shown as Mute all notifications. No save files are opened or edited by installation. Original Project Zomboid game files and debug files are unchanged.
+Persistent values remain under:
 
-## First test after install
+`getModData().SurvivorPhone`
 
-1. Start Project Zomboid fresh and load a test world or your current world only if you are comfortable testing the mod there.
-2. Wear or carry a digital watch. Confirm the small watch face opens and puts Vitals first.
-3. Toggle `Muted` / `Alerts` from the watch face or footer and confirm popups stop while tracking continues.
-4. Become Slightly Thirsty or Thirsty and confirm there is no thirst popup, while Vitals still shows the condition.
-5. Open Details and confirm the drawer is smaller, readable and keeps Vitals separate.
+The internal mod ID remains:
 
-## Verification
+`SurvivorPhone`
 
-The validation harness compiles and executes the production Lua in Lua 5.1 with simulated Build 42 objects and native game Lua fixtures. It does not launch the game and does not touch the main save.
+This is intentional for save compatibility. Installation and deployment do not require editing Project Zomboid save files or base-game files.
 
-## Deploy updates on Windows
+## Installation / local deployment
 
-Run `powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\sync-local-mod.ps1` from the repository
-root to back up and deploy the complete `42` payload from the checked-out branch.
-See [the sync workflow](tools/README.md) for initial destination setup, verification,
-backup receipts and restart requirements. The script does not merge branches.
+The Build 42 mod payload is under the `42` directory.
+
+For the development checkout on Windows, the included sync script can back up the installed mod, deploy the complete payload and verify file hashes:
+
+`powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\sync-local-mod.ps1`
+
+See [tools/README.md](tools/README.md) for the sync workflow and destination setup.
+
+## Current scope
+
+Survivor Watch is single-player focused. Terrain-map work and battery drain/charging remain outside the current release scope.
