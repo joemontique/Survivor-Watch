@@ -40,3 +40,16 @@ discarded. It leaves Project Zomboid running if open and reports that a restart
 is required for the new Lua to load. Sync again with the same command for each
 future selected update. In-game testing is still required; a successful hash
 check confirms deployment, not gameplay behavior.
+## Build a Steam Workshop package
+
+Use `build-workshop-package.ps1` to assemble and verify the Workshop authoring layout from the finished repository payload:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build-workshop-package.ps1 -PreviewPath 'C:\path\to\preview.png'
+```
+
+The preview must be a 256×256 PNG no larger than 1000 KB. By default the generated package goes to `dist\SurvivorWatchWorkshop`. Pass `-OutputPath` to build directly into a Project Zomboid Workshop authoring folder.
+
+The script validates Survivor Watch metadata, copies the complete Build 42 payload, creates the Build 42 Workshop wrapper, and SHA-256 verifies every packaged payload file. If rebuilding a script-managed Workshop folder after Steam assigns an ID, it preserves the existing `id=<WorkshopID>` line.
+
+See [../STEAM_WORKSHOP.md](../STEAM_WORKSHOP.md) for the full upload and clean-install smoke-test workflow.
