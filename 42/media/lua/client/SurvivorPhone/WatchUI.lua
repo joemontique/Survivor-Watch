@@ -114,7 +114,7 @@ function W:drawVitals(x,y,w)
     local rowH=14
     for _,bar in ipairs(bars) do
         local name=needNames[bar.key] or bar.label
-        local color=bar.key=='hunger' and bar.level and bar.level>=1 and c.red or bar.level and bar.level>=3 and c.red or bar.level and bar.level>=1 and c.amber or needColors[bar.key] or c.mint
+        local color=(bar.key=='hunger' or bar.key=='fatigue') and bar.level and bar.level>=1 and c.red or bar.level and bar.level>=3 and c.red or bar.level and bar.level>=1 and c.amber or needColors[bar.key] or c.mint
         local pct=math.floor((bar.percent or math.min(99.9,(bar.fill or 0)*100))+0.5)..'%'
         D.text(self,name,x,y,c.text,nil,74)
         D.round(self,x+76,y+4,w-116,6,c.raised,1,3)
