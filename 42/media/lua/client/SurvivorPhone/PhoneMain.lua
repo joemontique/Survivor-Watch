@@ -13,7 +13,7 @@ require 'SurvivorPhone/SleepCoach'
 require 'SurvivorPhone/RunningTracker'
 SurvivorPhone=SurvivorPhone or {}
 local S=SurvivorPhone
-S.windows=S.windows or {};S.watchWindows=S.watchWindows or {};S.nextPoll={};S.lastMinute={};S.legacyItemType='SurvivorPhone.CellPhone';S.version='1.6.5'
+S.windows=S.windows or {};S.watchWindows=S.watchWindows or {};S.nextPoll={};S.lastMinute={};S.legacyItemType='SurvivorPhone.CellPhone';S.version='1.6.6'
 local function ownedBy(item,player)
     local container=item and item:getContainer();return container and container:isInCharacterInventory(player)
 end
@@ -151,5 +151,5 @@ Events.OnPlayerUpdate.Add(S.poll)
 Events.OnGameStart.Add(SurvivorPhoneHooks.install)
 Events.OnGameStart.Add(SurvivorPhoneMechanicsXP.install)
 Events.AddXP.Add(onXP)
-print('[SurvivorPhone] Survivor Watch 1.6.5 loaded (Build 42.20).')
+print('[SurvivorPhone] Survivor Watch 1.6.6 loaded (Build 42.20).')
 return S
