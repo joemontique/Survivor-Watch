@@ -104,9 +104,14 @@ try {
 
     $modRoot = Join-Path $staging 'Contents\mods\SurvivorPhone'
     New-Item -ItemType Directory -Path $modRoot -Force | Out-Null
-    New-Item -ItemType Directory -Path (Join-Path $modRoot 'common') -Force | Out-Null
+    $commonRoot = Join-Path $modRoot 'common'
+    New-Item -ItemType Directory -Path $commonRoot -Force | Out-Null
 
+    # Build 42 Workshop validation checks mod.info inside common/ or a valid
+    # version directory. Keep the root copy for compatibility, but ensure
+    # common/mod.info is always present for the uploader.
     Copy-Item -LiteralPath $sourceModInfo -Destination (Join-Path $modRoot 'mod.info')
+    Copy-Item -LiteralPath $sourceModInfo -Destination (Join-Path $commonRoot 'mod.info')
     Copy-Item -LiteralPath $source42 -Destination (Join-Path $modRoot '42') -Recurse
 
     Set-Content -LiteralPath (Join-Path $staging $markerName) -Value 'Survivor Watch Workshop package managed by tools/build-workshop-package.ps1' -Encoding ASCII
@@ -116,6 +121,15 @@ try {
             Relative = $_.FullName.Substring($source42.Length).TrimStart('\')
             Hash = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash
         }
+    }
+
+    $commonModInfo = Join-Path $commonRoot 'mod.info'
+    if (-not (Test-Path -LiteralPath $commonModInfo -PathType Leaf)) {
+        throw "Workshop validator metadata missing: $commonModInfo"
+    }
+    if ((Get-FileHash -LiteralPath $commonModInfo -Algorithm SHA256).Hash -ne
+        (Get-FileHash -LiteralPath $sourceModInfo -Algorithm SHA256).Hash) {
+        throw 'Workshop common/mod.info does not match source mod.info.'
     }
 
     $package42 = Join-Path $modRoot '42'
@@ -156,6 +170,7 @@ try {
     Write-Host 'SHA-256 verification: PASS'
     Write-Host 'Mod ID: SurvivorPhone'
     Write-Host 'Release: 1.6.6'
+    Write-Host 'Workshop validator metadata: common/mod.info PASS'
     if ($existingWorkshopId) {
         Write-Host "Preserved Workshop ID: $existingWorkshopId"
     }
